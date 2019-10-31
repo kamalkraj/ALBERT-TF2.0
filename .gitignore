@@ -102,3 +102,15 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+#albert weights
+base/*
+large/*
+xlarge/*
+xxlarge/*
+
+#glue data
+glue_data/*
+
+#vscode
+.vscode/*
