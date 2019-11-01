@@ -64,6 +64,10 @@ flags.DEFINE_string(
     "output_dir", None,
     "The output directory where the model checkpoints will be written.")
 
+flags.DEFINE_enum(
+    "strategy_type", "one", ["one", "mirror"],
+    "Training strategy for single or multi gpu training")
+
 ## Other parameters
 
 flags.DEFINE_string(
@@ -92,8 +96,6 @@ flags.DEFINE_integer("train_batch_size", 32, "Total batch size for training.")
 
 flags.DEFINE_integer("eval_batch_size", 8, "Total batch size for eval.")
 
-flags.DEFINE_integer("predict_batch_size", 8, "Total batch size for predict.")
-
 flags.DEFINE_float("learning_rate", 5e-5, "The initial learning rate for Adam.")
 
 flags.DEFINE_float("weight_decay", 0.01, "weight_decay")
@@ -103,12 +105,24 @@ flags.DEFINE_float("adam_epsilon", 1e-6, "adam_epsilon")
 flags.DEFINE_integer("num_train_epochs", 3,
                    "Total number of training epochs to perform.")
 
+flags.DEFINE_bool("enable_xla",False, "enables XLA")
+
 flags.DEFINE_float(
     "warmup_proportion", 0.1,
     "Proportion of training to perform linear learning rate warmup for. "
     "E.g., 0.1 = 10% of training.")
 
 flags.DEFINE_integer("seed", 42, "random_seed")
+
+def set_config_v2(enable_xla=False):
+  """Config eager context according to flag values using TF 2.0 API."""
+  if enable_xla:
+    tf.config.optimizer.set_jit(True)
+    # Disable PinToHostOptimizer in grappler when enabling XLA because it
+    # causes OOM and performance regression.
+    tf.config.optimizer.set_experimental_options(
+        {'pin_to_host_optimization': False}
+    )
 
 
 def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learning_rate,
@@ -175,6 +189,18 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
 def main(_):
   logging.set_verbosity(logging.INFO)
 
+  if FLAGS.enable_xla:
+	  set_config_v2(FLAGS.enable_xla)
+
+  strategy = None
+  if FLAGS.strategy_type == "one":
+	  strategy = tf.distribute.OneDeviceStrategy()
+  if FLAGS.strategy_type == "mirror":
+	  strategy = tf.distribute.MirroredStrategy()
+  else:
+	  raise ValueError('The distribution strategy type is not supported: %s' %
+                     FLAGS.strategy_type)
+
   with tf.io.gfile.GFile(FLAGS.input_meta_data_path, 'rb') as reader:
     input_meta_data = json.loads(reader.read().decode('utf-8'))
   
@@ -204,14 +230,15 @@ def main(_):
         len_train_examples / FLAGS.train_batch_size * FLAGS.num_train_epochs)
     num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
 
-  model = get_model(
-      albert_config=albert_config,
-      max_seq_length=FLAGS.max_seq_length,
-      num_labels=num_labels,
-      init_checkpoint=FLAGS.init_checkpoint,
-      learning_rate=FLAGS.learning_rate,
-      num_train_steps=num_train_steps,
-      num_warmup_steps=num_warmup_steps)
+  with strategy.scope():
+	  model = get_model(
+		  albert_config=albert_config,
+		  max_seq_length=FLAGS.max_seq_length,
+		  num_labels=num_labels,
+		  init_checkpoint=FLAGS.init_checkpoint,
+		  learning_rate=FLAGS.learning_rate,
+		  num_train_steps=num_train_steps,
+		  num_warmup_steps=num_warmup_steps)
   model.summary()
 
   if FLAGS.do_train:
@@ -235,29 +262,30 @@ def main(_):
       is_training=False,
       drop_remainder=False)
 
-    training_dataset = train_input_fn()
-    evaluation_dataset = eval_input_fn()
+    with strategy.scope():
+        training_dataset = train_input_fn()
+        evaluation_dataset = eval_input_fn()
 
-    # checkpoint_path = os.path.join(FLAGS.output_dir, 'checkpoint')
-    # checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-    #     checkpoint_path, save_weights_only=True)
-
-    # import ipdb; ipdb.set_trace()
-    model.fit(x=training_dataset,validation_data=evaluation_dataset,epochs=FLAGS.num_train_epochs)
+        summary_dir = os.path.join(FLAGS.output_dir, 'summaries')
+        summary_callback = tf.keras.callbacks.TensorBoard(summary_dir)
+        checkpoint_path = os.path.join(FLAGS.output_dir, 'checkpoint')
+        checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True)
+        custom_callbacks = [summary_callback, checkpoint_callback]
+        
+        model.fit(x=training_dataset,validation_data=evaluation_dataset,epochs=FLAGS.num_train_epochs,callbacks=custom_callbacks)
     
 
-  # if FLAGS.do_eval:
-  #   len_eval_examples = input_meta_data['eval_data_size']
+  if FLAGS.do_eval:
+    len_eval_examples = input_meta_data['eval_data_size']
 
-  #   logging.info("***** Running evaluation *****")
-  #   logging.info("  Num examples = %d", len_eval_examples)
-  #   logging.info("  Batch size = %d", FLAGS.eval_batch_size)
+    logging.info("***** Running evaluation *****")
+    logging.info("  Num examples = %d", len_eval_examples)
+    logging.info("  Batch size = %d", FLAGS.eval_batch_size)
+    
+    with strategy.scope():
+        loss,accuracy = model.evaluate(evaluation_dataset)
 
-  #   features = convert_examples_to_features(eval_examples,label_list,FLAGS.max_seq_length,tokenizer)
-
-  #   x_pred,y_pred = features_to_tensor(features,is_training=False)
-
-  #   model.evaluate(x_pred,y_pred)
+    print(f"loss : {loss} , Accuracy : {accuracy}")
 
 
 if __name__ == "__main__":
