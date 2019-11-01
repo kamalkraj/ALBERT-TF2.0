@@ -60,14 +60,15 @@ python create_finetuning_data.py \
 ### Running classifier
 
 ```bash
+export MODEL_DIR=CoLA_OUT
 python run_classifer.py \
---train_data_path=cola_processed/CoLA_train.tf_record \
---eval_data_path=cola_processed/CoLA_eval.tf_record \
---input_meta_data_path=cola_processed/CoLA_meta_data \
+--train_data_path=${OUTPUT_DIR}/${TASK_NAME}_train.tf_record \
+--eval_data_path=${OUTPUT_DIR}/${TASK_NAME}_eval.tf_record \
+--input_meta_data_path=${OUTPUT_DIR}/${TASK_NAME}_meta_data \
 --albert_config_file=large/config.json \
---task_name=CoLA \
+--task_name=${TASK_NAME} \
 --spm_model_file=large/vocab/30k-clean.model \
---output_dir=CoLA_OUT \
+--output_dir=${MODEL_DIR} \
 --init_checkpoint=large/tf2_model.h5 \
 --do_train \
 --do_eval \
@@ -103,9 +104,7 @@ End of sequence
 
 ### Multi-GPU training 
 
-- WIP
-
-Not Enabled. Currently all the model will run only in single gpu. Adjust max_seq_length and batch size according to your gpu capacity.
+Use flag `--strategy_type=mirror` for Multi GPU training. Currently All the exsisting GPUs in the enviorment will be used.
 
 ### More Examples 
 
