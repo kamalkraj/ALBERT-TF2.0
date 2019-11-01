@@ -114,3 +114,10 @@ glue_data/*
 
 #vscode
 .vscode/*
+
+# processed files
+*tf_record
+*_meta_data
+
+# ouptut dir
+*_OUT/*
