@@ -93,6 +93,8 @@ def preprocess_text(inputs, remove_space=True, lower=False):
   if remove_space:
     outputs = " ".join(inputs.strip().split())
 
+  outputs = outputs.replace('``', '"').replace("''", '"')
+
   if six.PY2 and isinstance(outputs, str):
     try:
       outputs = six.ensure_text(outputs, "utf-8")

@@ -101,6 +101,24 @@ End of sequence
 
 - WIP
 
+#### Training Data Preparation
+```bash
+export SQUAD_DIR=SQuAD
+export SQUAD_VERSION=v1.1
+export ALBERT_DIR=large
+export OUTPUT_DIR=squad_out_${SQUAD_VERSION}
+mkdir $OUTPUT_DIR
+
+python create_finetuning_data.py \
+--squad_data_file=${SQUAD_DIR}/train-${SQUAD_VERSION}.json \
+--spm_model_file=large/vocab/30k-clean.model  \
+--train_data_output_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_train.tf_record  \
+--meta_data_file_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data  
+--fine_tuning_task_type=squad \
+--max_seq_length=384
+```
+
+
 
 ### Multi-GPU training 
 

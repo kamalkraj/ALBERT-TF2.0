@@ -14,15 +14,13 @@
 # ==============================================================================
 """BERT finetuning task dataset generator."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import json
 
-from absl import app
-from absl import flags
 import tensorflow as tf
+from absl import app, flags, logging
+
 import classifier_data_lib
 import squad_lib
 
@@ -127,6 +125,7 @@ def generate_squad_dataset():
 
 
 def main(_):
+  logging.set_verbosity(logging.INFO)
   if FLAGS.fine_tuning_task_type == "classification":
     input_meta_data = generate_classifier_dataset()
   else:

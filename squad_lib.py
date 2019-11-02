@@ -234,7 +234,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
   f = np.zeros((max_n, max_m), dtype=np.float32)
 
   for (example_index, example) in enumerate(examples):
-
+    
     if example_index % 100 == 0:
       logging.info("Converting {}/{} pos {} neg {}".format(
           example_index, len(examples), cnt_pos, cnt_neg))
@@ -254,20 +254,24 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
             example.paragraph_text, lower=FLAGS.do_lower_case),
         return_unicode=False)
 
+    para_tokens_ = []
+    for para_token in para_tokens:
+       if type(para_token) == bytes:
+         para_token = para_token.decode("utf-8")
+       para_tokens_.append(para_token)
+    para_tokens = para_tokens_
+
     chartok_to_tok_index = []
     tok_start_to_chartok_index = []
     tok_end_to_chartok_index = []
     char_cnt = 0
     for i, token in enumerate(para_tokens):
-      new_token = six.ensure_binary(token).replace(
-          tokenization.SPIECE_UNDERLINE, b" ")
-      chartok_to_tok_index.extend([i] * len(new_token))
+      chartok_to_tok_index.extend([i] * len(token))
       tok_start_to_chartok_index.append(char_cnt)
-      char_cnt += len(new_token)
+      char_cnt += len(token)
       tok_end_to_chartok_index.append(char_cnt - 1)
 
-    tok_cat_text = "".join(para_tokens).replace(
-        tokenization.SPIECE_UNDERLINE.decode("utf-8"), " ")
+    tok_cat_text = "".join(para_tokens).replace(tokenization.SPIECE_UNDERLINE.decode("utf-8"), " ")
     n, m = len(paragraph_text), len(tok_cat_text)
 
     if n > max_n or m > max_m:
@@ -855,7 +859,7 @@ def generate_tf_record_from_json_file(input_file_path,
   train_writer.close()
 
   meta_data = {
-      "task_type": "bert_squad",
+      "task_type": "albert_squad",
       "train_data_size": number_of_examples,
       "max_seq_length": max_seq_length,
       "max_query_length": max_query_length,

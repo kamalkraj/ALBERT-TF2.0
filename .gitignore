@@ -121,3 +121,6 @@ glue_data/*
 
 # ouptut dir
 *_OUT/*
+*_out_*/*
+# squad
+SQuAD/*
