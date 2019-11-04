@@ -43,12 +43,12 @@ following sections:
 export GLUE_DIR=glue_data/
 export ALBERT_DIR=large/
 
-export TASK_NAME=COLA
+export TASK_NAME=CoLA
 export OUTPUT_DIR=cola_processed
 mkdir $OUTPUT_DIR
 
 python create_finetuning_data.py \
- --input_data_dir=${GLUE_DIR}/${TASK_NAME}/ \
+ --input_data_dir=${GLUE_DIR}/ \
  --spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model \
  --train_data_output_path=${OUTPUT_DIR}/${TASK_NAME}_train.tf_record \
  --eval_data_output_path=${OUTPUT_DIR}/${TASK_NAME}_eval.tf_record \

@@ -173,18 +173,18 @@ class MnliProcessor(DataProcessor):
   def get_train_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        self._read_tsv(os.path.join(data_dir, "MNLI", "train.tsv")), "train")
 
   def get_dev_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "dev_matched.tsv")),
+        self._read_tsv(os.path.join(data_dir, "MNLI", "dev_matched.tsv")),
         "dev_matched")
 
   def get_test_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test_matched.tsv")), "test")
+        self._read_tsv(os.path.join(data_dir, "MNLI", "test_matched.tsv")), "test")
 
   def get_labels(self):
     """See base class."""
@@ -220,17 +220,17 @@ class MrpcProcessor(DataProcessor):
   def get_train_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        self._read_tsv(os.path.join(data_dir, "MRPC", "train.tsv")), "train")
 
   def get_dev_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+        self._read_tsv(os.path.join(data_dir, "MRPC", "dev.tsv")), "dev")
 
   def get_test_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
+        self._read_tsv(os.path.join(data_dir, "MRPC", "test.tsv")), "test")
 
   def get_labels(self):
     """See base class."""
@@ -266,17 +266,17 @@ class ColaProcessor(DataProcessor):
   def get_train_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        self._read_tsv(os.path.join(data_dir, "CoLA", "train.tsv")), "train")
 
   def get_dev_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+        self._read_tsv(os.path.join(data_dir, "CoLA", "dev.tsv")), "dev")
 
   def get_test_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
+        self._read_tsv(os.path.join(data_dir, "CoLA", "test.tsv")), "test")
 
   def get_labels(self):
     """See base class."""
