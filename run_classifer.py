@@ -88,6 +88,8 @@ flags.DEFINE_integer(
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
 
+flags.DEFINE_float("classifier_dropout",0.1,"classification layer dropout")
+
 flags.DEFINE_bool("do_train", False, "Whether to run training.")
 
 flags.DEFINE_bool("do_eval", False, "Whether to run eval on the dev set.")
@@ -129,7 +131,7 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
                      num_train_steps, num_warmup_steps):
     """Returns keras fuctional model"""
     float_type = tf.float32
-    # hidden_dropout_prob = 0.9 # as per original code relased
+    hidden_dropout_prob = FLAGS.classifier_dropout # as per original code relased
     input_word_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='input_word_ids')
     input_mask = tf.keras.layers.Input(
@@ -148,7 +150,7 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
                                                 
     initializer = tf.keras.initializers.TruncatedNormal(stddev=albert_config.initializer_range)
 
-    output = tf.keras.layers.Dropout(rate=albert_config.hidden_dropout_prob)(pooled_output)
+    output = tf.keras.layers.Dropout(rate=hidden_dropout_prob)(pooled_output)
     output = tf.keras.layers.Dense(
         num_labels,
         activation="softmax",
