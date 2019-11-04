@@ -33,7 +33,8 @@ from six.moves import zip
 import tokenization
 from albert import AlbertConfig, AlbertModel
 from input_pipeline import create_classifier_dataset
-from optimization import LAMB, WarmUp
+from optimization import AdamWeightDecay,LAMB, WarmUp
+from model_training_utils import run_customized_training_loop
 
 FLAGS = flags.FLAGS
 
@@ -114,6 +115,10 @@ flags.DEFINE_float(
     "Proportion of training to perform linear learning rate warmup for. "
     "E.g., 0.1 = 10% of training.")
 
+flags.DEFINE_enum("optimizer","LAMB",["LAMB","AdamW"],"Optimizer for training LAMB/AdamW")
+
+flags.DEFINE_bool("custom_training_loop",False,"Use Cutsom training loop instead of model.fit")
+
 flags.DEFINE_integer("seed", 42, "random_seed")
 
 def set_config_v2(enable_xla=False):
@@ -172,7 +177,12 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
         learning_rate_fn = WarmUp(initial_learning_rate=learning_rate,
                                 decay_schedule_fn=learning_rate_fn,
                                 warmup_steps=num_warmup_steps)
-    lamp_optimizer = LAMB(
+    if FLAGS.optimizer == "LAMB":
+        optimizer_fn = LAMB
+    else:
+        optimizer_fn = AdamWeightDecay
+
+    optimizer = optimizer_fn(
         learning_rate=learning_rate_fn,
         weight_decay_rate=FLAGS.weight_decay,
         beta_1=0.9,
@@ -182,7 +192,7 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
     
     loss_fct = tf.keras.losses.SparseCategoricalCrossentropy()
 
-    model.compile(optimizer=lamp_optimizer,loss=loss_fct,metrics=['accuracy'])
+    model.compile(optimizer=optimizer,loss=loss_fct,metrics=['accuracy'])
     
     return model
 
@@ -226,8 +236,10 @@ def main(_):
 
   num_train_steps = None
   num_warmup_steps = None
+  steps_per_epoch = None
   if FLAGS.do_train:
     len_train_examples = input_meta_data['train_data_size']
+    steps_per_epoch = int(len_train_examples / FLAGS.train_batch_size)
     num_train_steps = int(
         len_train_examples / FLAGS.train_batch_size * FLAGS.num_train_epochs)
     num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
@@ -265,8 +277,6 @@ def main(_):
       drop_remainder=False)
 
     with strategy.scope():
-        training_dataset = train_input_fn()
-        evaluation_dataset = eval_input_fn()
 
         summary_dir = os.path.join(FLAGS.output_dir, 'summaries')
         summary_callback = tf.keras.callbacks.TensorBoard(summary_dir)
@@ -274,7 +284,20 @@ def main(_):
         checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True)
         custom_callbacks = [summary_callback, checkpoint_callback]
         
-        model.fit(x=training_dataset,validation_data=evaluation_dataset,epochs=FLAGS.num_train_epochs,callbacks=custom_callbacks)
+        if FLAGS.custom_training_loop:
+            model = run_customized_training_loop(strategy = strategy,
+                    model = model,
+                    loss_fn=model.loss_functions[0],
+                    model_dir=checkpoint_path,
+                    train_input_fn=train_input_fn,
+                    eval_input_fn=eval_input_fn,
+                    eval_steps=int(input_meta_data['eval_data_size']/FLAGS.eval_batch_size),
+                    metric_fn=tf.keras.metrics.Accuracy,
+                    custom_callbacks=custom_callbacks)
+        else:
+            training_dataset = train_input_fn()
+            evaluation_dataset = eval_input_fn()
+            model.fit(x=training_dataset,validation_data=evaluation_dataset,epochs=FLAGS.num_train_epochs,callbacks=custom_callbacks)
     
 
   if FLAGS.do_eval:

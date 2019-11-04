@@ -91,7 +91,6 @@ def run_customized_training_loop(
     eval_input_fn=None,
     eval_steps=None,
     metric_fn=None,
-    init_checkpoint=None,
     custom_callbacks=None,
     run_eagerly=False):
   """Run ALBERT pretrain model training using low-level API.
