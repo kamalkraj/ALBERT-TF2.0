@@ -43,7 +43,7 @@ following sections:
 export GLUE_DIR=glue_data/
 export ALBERT_DIR=large/
 
-export TASK_NAME=CoLA
+export TASK_NAME=COLA
 export OUTPUT_DIR=cola_processed
 mkdir $OUTPUT_DIR
 
