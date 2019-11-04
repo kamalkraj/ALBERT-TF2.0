@@ -65,11 +65,11 @@ python run_classifer.py \
 --train_data_path=${OUTPUT_DIR}/${TASK_NAME}_train.tf_record \
 --eval_data_path=${OUTPUT_DIR}/${TASK_NAME}_eval.tf_record \
 --input_meta_data_path=${OUTPUT_DIR}/${TASK_NAME}_meta_data \
---albert_config_file=large/config.json \
+--albert_config_file=${ALBERT_DIR}/config.json \
 --task_name=${TASK_NAME} \
---spm_model_file=large/vocab/30k-clean.model \
+--spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model \
 --output_dir=${MODEL_DIR} \
---init_checkpoint=large/tf2_model.h5 \
+--init_checkpoint=${ALBERT_DIR}/tf2_model.h5 \
 --do_train \
 --do_eval \
 --train_batch_size=16 \

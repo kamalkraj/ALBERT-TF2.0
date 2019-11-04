@@ -196,7 +196,7 @@ def main(_):
 
   strategy = None
   if FLAGS.strategy_type == "one":
-	  strategy = tf.distribute.OneDeviceStrategy()
+	  strategy = tf.distribute.OneDeviceStrategy("GPU:0")
   if FLAGS.strategy_type == "mirror":
 	  strategy = tf.distribute.MirroredStrategy()
   else:
