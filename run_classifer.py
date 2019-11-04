@@ -115,7 +115,7 @@ flags.DEFINE_float(
     "Proportion of training to perform linear learning rate warmup for. "
     "E.g., 0.1 = 10% of training.")
 
-flags.DEFINE_enum("optimizer","LAMB",["LAMB","AdamW"],"Optimizer for training LAMB/AdamW")
+flags.DEFINE_enum("optimizer","AdamW",["LAMB","AdamW"],"Optimizer for training LAMB/AdamW")
 
 flags.DEFINE_bool("custom_training_loop",False,"Use Cutsom training loop instead of model.fit")
 
