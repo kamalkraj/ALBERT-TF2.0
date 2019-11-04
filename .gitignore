@@ -104,10 +104,10 @@ venv.bak/
 .mypy_cache/
 
 #albert weights
-base/*
-large/*
-xlarge/*
-xxlarge/*
+base*/*
+large*/*
+xlarge*/*
+xxlarge*/*
 
 #glue data
 glue_data/*
