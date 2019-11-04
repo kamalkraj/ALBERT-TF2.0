@@ -143,7 +143,7 @@ def run_customized_training_loop(
       strategy, model, loss_fn, model_dir, steps_per_epoch, train_input_fn
   ]
   if [arg for arg in required_arguments if arg is None]:
-    raise ValueError('`strategy`, `model_fn`, `loss_fn`, `model_dir`, '
+    raise ValueError('`strategy`, `model`, `loss_fn`, `model_dir`, '
                      '`steps_per_loop` and `steps_per_epoch` are required '
                      'parameters.')
   if steps_per_loop > steps_per_epoch:
@@ -303,7 +303,7 @@ def run_customized_training_loop(
       logging.info(
           'Checkpoint file %s found and restoring from '
           'checkpoint', latest_checkpoint_file)
-      checkpoint.restore(latest_checkpoint_file)
+      checkpoint.restore(latest_checkpoint_file).expect_partial()
       logging.info('Loading from checkpoint file completed')
 
     current_step = optimizer.iterations.numpy()

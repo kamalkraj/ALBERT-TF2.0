@@ -14,11 +14,12 @@
 # ==============================================================================
 """BERT model input pipelines."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import tensorflow as tf
+from absl import flags
+
+FLAGS = flags.FLAGS
 
 
 def decode_record(record, name_to_features):
@@ -87,6 +88,8 @@ def create_classifier_dataset(file_path,
 
   if is_training:
     dataset = dataset.shuffle(1024,reshuffle_each_iteration=True)
+    if FLAGS.custom_training_loop:
+      dataset = dataset.repeat()
 
   dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
   dataset = dataset.prefetch(1024)
@@ -120,7 +123,9 @@ def create_squad_dataset(file_path, seq_length, batch_size, is_training=True):
   dataset = dataset.map(_select_data_from_record)
 
   if is_training:
-    dataset = dataset.shuffle(100)
+    dataset = dataset.shuffle(100,reshuffle_each_iteration=True)
+    if FLAGS.custom_training_loop:
+      dataset = dataset.repeat()
 
   dataset = dataset.batch(batch_size, drop_remainder=False)
   dataset = dataset.prefetch(1024)

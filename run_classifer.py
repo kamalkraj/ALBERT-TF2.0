@@ -131,9 +131,25 @@ def set_config_v2(enable_xla=False):
         {'pin_to_host_optimization': False}
     )
 
+def get_loss_fn(num_classes, loss_factor=1.0):
+  """Gets the classification loss function."""
+
+  def classification_loss_fn(labels, logits):
+    """Classification loss."""
+    labels = tf.squeeze(labels)
+    log_probs = tf.nn.log_softmax(logits, axis=-1)
+    one_hot_labels = tf.one_hot(
+        tf.cast(labels, dtype=tf.int32), depth=num_classes, dtype=tf.float32)
+    per_example_loss = -tf.reduce_sum(
+        tf.cast(one_hot_labels, dtype=tf.float32) * log_probs, axis=-1)
+    loss = tf.reduce_mean(per_example_loss)
+    loss *= loss_factor
+    return loss
+
+  return classification_loss_fn
 
 def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learning_rate,
-                     num_train_steps, num_warmup_steps):
+                     num_train_steps, num_warmup_steps,loss_multiplier):
     """Returns keras fuctional model"""
     float_type = tf.float32
     hidden_dropout_prob = FLAGS.classifier_dropout # as per original code relased
@@ -156,9 +172,9 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
     initializer = tf.keras.initializers.TruncatedNormal(stddev=albert_config.initializer_range)
 
     output = tf.keras.layers.Dropout(rate=hidden_dropout_prob)(pooled_output)
+    
     output = tf.keras.layers.Dense(
         num_labels,
-        activation="softmax",
         kernel_initializer=initializer,
         name='output',
         dtype=float_type)(
@@ -190,7 +206,7 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
         epsilon=FLAGS.adam_epsilon,
         exclude_from_weight_decay=['layer_norm', 'bias'])
     
-    loss_fct = tf.keras.losses.SparseCategoricalCrossentropy()
+    loss_fct = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
     model.compile(optimizer=optimizer,loss=loss_fct,metrics=['accuracy'])
     
@@ -243,6 +259,8 @@ def main(_):
     num_train_steps = int(
         len_train_examples / FLAGS.train_batch_size * FLAGS.num_train_epochs)
     num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
+  
+  loss_multiplier = 1.0 / strategy.num_replicas_in_sync
 
   with strategy.scope():
 	  model = get_model(
@@ -252,7 +270,8 @@ def main(_):
 		  init_checkpoint=FLAGS.init_checkpoint,
 		  learning_rate=FLAGS.learning_rate,
 		  num_train_steps=num_train_steps,
-		  num_warmup_steps=num_warmup_steps)
+		  num_warmup_steps=num_warmup_steps,
+          loss_multiplier=loss_multiplier)
   model.summary()
 
   if FLAGS.do_train:
@@ -285,15 +304,18 @@ def main(_):
         custom_callbacks = [summary_callback, checkpoint_callback]
         
         if FLAGS.custom_training_loop:
+            loss_fn = get_loss_fn(num_labels,loss_factor=loss_multiplier)
             model = run_customized_training_loop(strategy = strategy,
                     model = model,
-                    loss_fn=model.loss_functions[0],
-                    model_dir=checkpoint_path,
-                    train_input_fn=train_input_fn,
-                    eval_input_fn=eval_input_fn,
-                    eval_steps=int(input_meta_data['eval_data_size']/FLAGS.eval_batch_size),
-                    metric_fn=tf.keras.metrics.Accuracy,
-                    custom_callbacks=custom_callbacks)
+                    loss_fn = loss_fn,
+                    model_dir = checkpoint_path,
+                    train_input_fn = train_input_fn,
+                    steps_per_epoch = steps_per_epoch,
+                    epochs=FLAGS.num_train_epochs,
+                    eval_input_fn = eval_input_fn,
+                    eval_steps = int(input_meta_data['eval_data_size']/FLAGS.eval_batch_size),
+                    metric_fn = tf.keras.metrics.SparseCategoricalAccuracy,
+                    custom_callbacks = custom_callbacks)
         else:
             training_dataset = train_input_fn()
             evaluation_dataset = eval_input_fn()
@@ -306,7 +328,7 @@ def main(_):
     logging.info("***** Running evaluation *****")
     logging.info("  Num examples = %d", len_eval_examples)
     logging.info("  Batch size = %d", FLAGS.eval_batch_size)
-    
+    evaluation_dataset = eval_input_fn()
     with strategy.scope():
         loss,accuracy = model.evaluate(evaluation_dataset)
 
