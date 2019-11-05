@@ -1,7 +1,5 @@
 # ALBERT-TF2.0
-ALBERT model Fine Tuning using TF2.0 [WIP][90%]
-
-`warning` 🐞🐞🐞
+ALBERT model Fine Tuning using TF2.0
 
 ## Requirements
 - python3
@@ -79,7 +77,8 @@ python run_classifer.py \
 --do_train \
 --do_eval \
 --train_batch_size=16 \
---learning_rate=1e-5
+--learning_rate=1e-5 \
+--custom_training_loop
 ```
 
 By default run_classifier will run 3 epochs. and evaluate on development set
@@ -89,7 +88,7 @@ Above cmd would result in dev set `accuracy` of `76.22` in CoLA task
 The above code tested on TITAN RTX 24GB single GPU
 
 ### Ignore
-Below warning will be there at end of each epoch. Issue with training steps calcuation when `tf.data` provided to `model.fit()`
+Below warning will be displayed if you use keras model.fit method at end of each epoch. Issue with training steps calculation when `tf.data` provided to `model.fit()`
 Have no effect on model performance so ignore. Mostly will fixed in the next tf2 relase . [Issue-link](https://github.com/tensorflow/tensorflow/issues/25254)
 ```
 2019-10-31 13:35:48.322897: W tensorflow/core/common_runtime/base_collective_executor.cc:216] BaseCollectiveExecutor::StartAbort Out of range:
@@ -104,6 +103,14 @@ End of sequence
 
 
 ### SQuAD
+
+#### Data and Evalution scripts
+*   [train-v1.1.json](https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v1.1.json)
+*   [dev-v1.1.json](https://rajpurkar.github.io/SQuAD-explorer/dataset/dev-v1.1.json)
+*   [evaluate-v1.1.py](https://github.com/allenai/bi-att-flow/blob/master/squad/evaluate-v1.1.py)
+*   [train-v2.0.json](https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v2.0.json)
+*   [dev-v2.0.json](https://rajpurkar.github.io/SQuAD-explorer/dataset/dev-v2.0.json)
+*   [evaluate-v2.0.py](https://worksheets.codalab.org/rest/bundles/0x6b567e1cf2e041ec80d7098f031c5c9e/contents/blob/)
 
 #### Training Data Preparation
 ```bash
