@@ -4,7 +4,7 @@ import os
 import re
 
 import tensorflow as tf
-from absl import app,flags
+from absl import app, flags
 
 from albert import AlbertConfig, AlbertModel
 
@@ -42,8 +42,7 @@ weight_map = {
     "bert/pooler/dense/bias": "albert_model/pooler_transform/bias:0"
 }
 
-weight_map = {v:k for k,v in weight_map.items()}
-
+weight_map = {v: k for k, v in weight_map.items()}
 
 
 def main(_):
@@ -59,14 +58,13 @@ def main(_):
     input_type_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='input_type_ids')
 
-
     albert_config = AlbertConfig.from_json_file(
-        os.path.join(tfhub_model_path,"assets" ,"albert_config.json"))
+        os.path.join(tfhub_model_path, "assets", "albert_config.json"))
 
     albert_layer = AlbertModel(config=albert_config, float_type=float_type)
 
     pooled_output, sequence_output = albert_layer(input_word_ids, input_mask,
-                                                        input_type_ids)
+                                                  input_type_ids)
 
     albert_model = tf.keras.Model(
         inputs=[input_word_ids, input_mask, input_type_ids],
@@ -92,37 +90,37 @@ def main(_):
     albert_params = albert_model.weights
     param_values = tf.keras.backend.batch_get_value(albert_model.weights)
 
-
     for ndx, (param_value, param) in enumerate(zip(param_values, albert_params)):
-            stock_name = weight_map[param.name]
+        stock_name = weight_map[param.name]
 
-            if stock_name in stock_values:
-                ckpt_value = stock_values[stock_name]
+        if stock_name in stock_values:
+            ckpt_value = stock_values[stock_name]
 
-                if param_value.shape != ckpt_value.shape:
-                    print("loader: Skipping weight:[{}] as the weight shape:[{}] is not compatible "
-                        "with the checkpoint:[{}] shape:{}".format(param.name, param.shape,
-                                                                    stock_name, ckpt_value.shape))
-                    skipped_weight_value_tuples.append((param, ckpt_value))
-                    continue
+            if param_value.shape != ckpt_value.shape:
+                print("loader: Skipping weight:[{}] as the weight shape:[{}] is not compatible "
+                      "with the checkpoint:[{}] shape:{}".format(param.name, param.shape,
+                                                                 stock_name, ckpt_value.shape))
+                skipped_weight_value_tuples.append((param, ckpt_value))
+                continue
 
-                weight_value_tuples.append((param, ckpt_value))
-                loaded_weights.add(stock_name)
-            else:
-                print("loader: No value for:[{}], i.e.:[{}] in:[{}]".format(param.name, stock_name, tfhub_model_path))
-                skip_count += 1
+            weight_value_tuples.append((param, ckpt_value))
+            loaded_weights.add(stock_name)
+        else:
+            print("loader: No value for:[{}], i.e.:[{}] in:[{}]".format(
+                param.name, stock_name, tfhub_model_path))
+            skip_count += 1
     tf.keras.backend.batch_set_value(weight_value_tuples)
 
     print("Done loading {} BERT weights from: {} into {} (prefix:{}). "
-            "Count of weights not found in the checkpoint was: [{}]. "
-            "Count of weights with mismatched shape: [{}]".format(
-                len(weight_value_tuples), tfhub_model_path, albert_layer, "albert", skip_count, len(skipped_weight_value_tuples)))
+          "Count of weights not found in the checkpoint was: [{}]. "
+          "Count of weights with mismatched shape: [{}]".format(
+              len(weight_value_tuples), tfhub_model_path, albert_layer, "albert", skip_count, len(skipped_weight_value_tuples)))
     print("Unused weights from saved model:",
-            "\n\t" + "\n\t".join(sorted(set(stock_values.keys()).difference(loaded_weights))))
+          "\n\t" + "\n\t".join(sorted(set(stock_values.keys()).difference(loaded_weights))))
 
     albert_model.save_weights(f"{tfhub_model_path}/tf2_model.h5")
 
 
 if __name__ == "__main__":
-  flags.mark_flag_as_required("tf_hub_path")
-  app.run(main)
+    flags.mark_flag_as_required("tf_hub_path")
+    app.run(main)
