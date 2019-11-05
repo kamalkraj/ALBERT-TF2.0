@@ -56,8 +56,6 @@ flags.DEFINE_string('predict_file', None,
 flags.DEFINE_integer('predict_batch_size', 8,
                      'Total batch size for predicting.')
 
-flags.DEFINE_integer('predict_batch_size', 8,
-                     'Total batch size for prediction.')
 flags.DEFINE_integer(
     'n_best_size', 20,
     'The total number of n-best predictions to generate in the '

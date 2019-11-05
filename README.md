@@ -133,7 +133,7 @@ python run_squad.py \
   --predict_batch_size=48 \
   --learning_rate=1e-5 \
   --num_train_epochs=3 \
-  --model_dir=${MODEL_DIR} \
+  --model_dir=${OUTPUT_DIR} \
   --strategy_type=mirror
 ```
 
