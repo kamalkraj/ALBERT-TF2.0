@@ -9,17 +9,23 @@ ALBERT model Fine Tuning using TF2.0 [WIP][90%]
 
 ## Download ALBERT TF 2.0 weights
 
+#### Verison 1
+
 - [base](https://drive.google.com/open?id=1WDz1193fEo8vROpi-hWn3hveMmddLjpy)
 - [large](https://drive.google.com/open?id=1j4ePHivAXHNqqNucZOocwlkyneQyUROl)
 - [xlarge](https://drive.google.com/open?id=10o7l7c7Y5UlkSQmFca0_iaRsGIPmJ5Ya)
 - [xxlarge](https://drive.google.com/open?id=1gl5lOiAHq29C_sG6GoXLeZJHKDD2Gfju)
 
+#### Version 2
+
+- [base](https://drive.google.com/open?id=1FkrvdQnJR9za9Pv8cuiEXd1EI2hxx31a)
+- [large](https://drive.google.com/open?id=1xADTTjwTogFmnhNU3EPJ86slykoSL4L7)
+- [xlarge](https://drive.google.com/open?id=1GsAU_RqO8Pl7oPecj0opjA-4ktI8-4oX)
+- [xxlarge](https://drive.google.com/open?id=1JtQcGKtt0QZThXS1jz2v5x72TrYYjg8N)
+
 unzip the model inside repo.
 
-Above weights does not contain the final layer in orginal model. Now can only be used for fine tuning downstream tasks. 
-
-Above weights are converted from `tf_hub version 1`
- checkpoints. converted weights are tested with `tf_hub` module and produces idential results.
+Above weights does not contain the final layer in original model. Now can only be used for fine tuning downstream tasks.
 
 
 ## Download glue data
@@ -82,7 +88,7 @@ Above cmd would result in dev set `accuracy` of `76.22` in CoLA task
 
 The above code tested on TITAN RTX 24GB single GPU
 
-### Ignore 
+### Ignore
 Below warning will be there at end of each epoch. Issue with training steps calcuation when `tf.data` provided to `model.fit()`
 Have no effect on model performance so ignore. Mostly will fixed in the next tf2 relase . [Issue-link](https://github.com/tensorflow/tensorflow/issues/25254)
 ```
@@ -120,24 +126,24 @@ python create_finetuning_data.py \
 ```bash
 
 python run_squad.py \
-  --mode=train_and_predict \
-  --input_meta_data_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data \
-  --train_data_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_train.tf_record \
-  --predict_file=${SQUAD_DIR}/dev-${SQUAD_VERSION}.json \
-  --albert_config_file=${ALBERT_DIR}/config.json \
-  --init_checkpoint=${ALBERT_DIR}/tf2_model.h5 \
-  --spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model \
-  --train_batch_size=48 \
-  --predict_batch_size=48 \
-  --learning_rate=1e-5 \
-  --num_train_epochs=3 \
-  --model_dir=${OUTPUT_DIR} \
-  --strategy_type=mirror
+--mode=train_and_predict \
+--input_meta_data_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data \
+--train_data_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_train.tf_record \
+--predict_file=${SQUAD_DIR}/dev-${SQUAD_VERSION}.json \
+--albert_config_file=${ALBERT_DIR}/config.json \
+--init_checkpoint=${ALBERT_DIR}/tf2_model.h5 \
+--spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model \
+--train_batch_size=48 \
+--predict_batch_size=48 \
+--learning_rate=1e-5 \
+--num_train_epochs=3 \
+--model_dir=${OUTPUT_DIR} \
+--strategy_type=mirror
 ```
 
 
 
-### Multi-GPU training 
+### Multi-GPU training
 
 Use flag `--strategy_type=mirror` for Multi GPU training. Currently All the exsisting GPUs in the enviorment will be used.
 
