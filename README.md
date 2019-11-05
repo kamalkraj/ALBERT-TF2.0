@@ -1,5 +1,5 @@
 # ALBERT-TF2.0
-ALBERT model Fine Tuning using TF2.0 [WIP] 
+ALBERT model Fine Tuning using TF2.0 [WIP][90%]
 
 `warning` 🐞🐞🐞
 
@@ -99,8 +99,6 @@ End of sequence
 
 ### SQuAD
 
-- WIP
-
 #### Training Data Preparation
 ```bash
 export SQUAD_DIR=SQuAD
@@ -143,9 +141,7 @@ python run_squad.py \
 
 Use flag `--strategy_type=mirror` for Multi GPU training. Currently All the exsisting GPUs in the enviorment will be used.
 
-### More Examples 
 
-- WIP
 
 ## References
 
