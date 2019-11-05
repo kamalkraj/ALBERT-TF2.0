@@ -119,6 +119,8 @@ flags.DEFINE_float(
 
 flags.DEFINE_enum("optimizer","AdamW",["LAMB","AdamW"],"Optimizer for training LAMB/AdamW")
 
+flags.DEFINE_bool("custom_training_loop",True,"Use Cutsom training loop instead of model.fit")
+
 flags.DEFINE_integer("seed", 42, "random_seed")
 
 FLAGS = flags.FLAGS
