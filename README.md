@@ -111,7 +111,7 @@ mkdir $OUTPUT_DIR
 
 python create_finetuning_data.py \
 --squad_data_file=${SQUAD_DIR}/train-${SQUAD_VERSION}.json \
---spm_model_file=large/vocab/30k-clean.model  \
+--spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model  \
 --train_data_output_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_train.tf_record  \
 --meta_data_file_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data \
 --fine_tuning_task_type=squad \
