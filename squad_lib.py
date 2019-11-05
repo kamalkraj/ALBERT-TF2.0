@@ -630,7 +630,7 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
   example_index_to_features = collections.defaultdict(list)
   for feature in all_features:
     example_index_to_features[feature.example_index].append(feature)
-
+  
   unique_id_to_result = {}
   for result in all_results:
     unique_id_to_result[result.unique_id] = result
@@ -866,5 +866,5 @@ def generate_tf_record_from_json_file(input_file_path,
       "doc_stride": doc_stride,
       "version_2_with_negative": version_2_with_negative,
   }
-
+  
   return meta_data
