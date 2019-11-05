@@ -18,6 +18,7 @@ from __future__ import absolute_import, division, print_function
 
 import functools
 import json
+import math
 import os
 
 import tensorflow as tf
@@ -117,11 +118,20 @@ flags.DEFINE_float(
     "Proportion of training to perform linear learning rate warmup for. "
     "E.g., 0.1 = 10% of training.")
 
+flags.DEFINE_bool(
+    "version_2_with_negative", False,
+    "If true, the SQuAD examples contain some that do not have an answer.")
+
+flags.DEFINE_float(
+    "null_score_diff_threshold", 0.0,
+    "If null_score - best_non_null is greater than the threshold predict null.")
+
 flags.DEFINE_enum("optimizer","AdamW",["LAMB","AdamW"],"Optimizer for training LAMB/AdamW")
 
 flags.DEFINE_bool("custom_training_loop",True,"Use Cutsom training loop instead of model.fit")
 
 flags.DEFINE_integer("seed", 42, "random_seed")
+
 
 FLAGS = flags.FLAGS
 
@@ -384,7 +394,6 @@ def train_squad(strategy,
         epochs=FLAGS.num_train_epochs,
         run_eagerly=run_eagerly,
         custom_callbacks=custom_callbacks)
-    trained_model.save(f"SQuAD/model.h5")
 
 
 def predict_squad(strategy, input_meta_data):
@@ -405,6 +414,10 @@ def predict_squad(strategy, input_meta_data):
         is_training=False)
     eval_features = []
 
+    def _append_feature(feature):
+        eval_features.append(feature)
+        eval_writer.process_feature(feature)
+
     # TPU requires a fixed batch size for all batches, therefore the number
     # of examples must be a multiple of the batch size, or else examples
     # will get dropped. So we pad with fake examples which are ignored
@@ -416,7 +429,7 @@ def predict_squad(strategy, input_meta_data):
         doc_stride=doc_stride,
         max_query_length=max_query_length,
         is_training=False,
-        output_fn=eval_writer.process_feature)
+        output_fn=_append_feature)
     eval_writer.close()
 
     logging.info('***** Running predictions *****')
@@ -424,7 +437,7 @@ def predict_squad(strategy, input_meta_data):
     logging.info('  Num split examples = %d', len(eval_features))
     logging.info('  Batch size = %d', FLAGS.predict_batch_size)
 
-    num_steps = int(dataset_size / FLAGS.predict_batch_size)
+    num_steps = math.ceil(dataset_size / FLAGS.predict_batch_size)
     all_results = predict_squad_customized(strategy, input_meta_data, albert_config,
                                            eval_writer.filename, num_steps)
 
@@ -460,6 +473,7 @@ def export_squad(model_export_path, input_meta_data):
 def main(_):
     # Users should always run this script under TF 2.x
     assert tf.version.VERSION.startswith('2.')
+    logging.set_verbosity(logging.INFO)
 
     with tf.io.gfile.GFile(FLAGS.input_meta_data_path, 'rb') as reader:
         input_meta_data = json.loads(reader.read().decode('utf-8'))
