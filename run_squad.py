@@ -56,11 +56,6 @@ flags.DEFINE_string('predict_file', None,
 flags.DEFINE_integer('predict_batch_size', 8,
                      'Total batch size for predicting.')
 
-flags.DEFINE_bool(
-    'verbose_logging', False,
-    'If true, all of the warnings related to data processing will be printed. '
-    'A number of warnings are expected for a normal SQuAD evaluation.')
-
 flags.DEFINE_integer('predict_batch_size', 8,
                      'Total batch size for prediction.')
 flags.DEFINE_integer(
@@ -83,7 +78,7 @@ flags.DEFINE_string("spm_model_file", None,
                     "The model file for sentence piece tokenization.")
 
 flags.DEFINE_string(
-    "output_dir", None,
+    "model_dir", None,
     "The output directory where the model checkpoints will be written.")
 
 flags.DEFINE_enum(

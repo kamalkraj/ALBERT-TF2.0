@@ -118,6 +118,25 @@ python create_finetuning_data.py \
 --max_seq_length=384
 ```
 
+### Running Model
+```bash
+
+python run_squad.py \
+  --mode=train_and_predict \
+  --input_meta_data_path=${SQUAD_DIR}/squad_${SQUAD_VERSION}_meta_data \
+  --train_data_path=${SQUAD_DIR}/squad_${SQUAD_VERSION}_train.tf_record \
+  --predict_file=${SQUAD_DIR}/dev-${SQUAD_VERSION}.json \
+  --albert_config_file=${ALBERT_DIR}/config.json \
+  --init_checkpoint=${ALBERT_DIR}/tf2_model.h5 \
+  --spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model
+  --train_batch_size=48 \
+  --predict_batch_size=48 \
+  --learning_rate=1e-5 \
+  --num_train_epochs=3 \
+  --model_dir=${MODEL_DIR} \
+  --strategy_type=mirror
+```
+
 
 
 ### Multi-GPU training 
