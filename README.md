@@ -20,6 +20,7 @@ unzip the model inside repo.
 
 Above weights does not contain the final layer in original model. Now can only be used for fine tuning downstream tasks.
 
+Weights conversion from TF-HUB to TF 2.0 [here](./converter.md)
 
 ## Download glue data
 Download using the below cmd
