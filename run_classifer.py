@@ -159,7 +159,7 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
         shape=(max_seq_length,), dtype=tf.int32, name='input_mask')
     input_type_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='input_type_ids')
-    
+
     albert_layer = AlbertModel(config=albert_config, float_type=float_type)
 
     pooled_output, _ = albert_layer(input_word_ids, input_mask, input_type_ids)
@@ -168,11 +168,11 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
                                   outputs=[pooled_output])
 
     albert_model.load_weights(init_checkpoint)
-                                                
+
     initializer = tf.keras.initializers.TruncatedNormal(stddev=albert_config.initializer_range)
 
     output = tf.keras.layers.Dropout(rate=hidden_dropout_prob)(pooled_output)
-    
+
     output = tf.keras.layers.Dense(
         num_labels,
         kernel_initializer=initializer,
@@ -186,7 +186,7 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
             'input_type_ids': input_type_ids
         },
         outputs=output)
-    
+
     learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(initial_learning_rate=learning_rate,
                                                 decay_steps=num_train_steps,end_learning_rate=0.0)
     if num_warmup_steps:
@@ -205,11 +205,11 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
         beta_2=0.999,
         epsilon=FLAGS.adam_epsilon,
         exclude_from_weight_decay=['layer_norm', 'bias'])
-    
+
     loss_fct = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
     model.compile(optimizer=optimizer,loss=loss_fct,metrics=['accuracy'])
-    
+
     return model
 
 
@@ -231,11 +231,11 @@ def main(_):
 
   with tf.io.gfile.GFile(FLAGS.input_meta_data_path, 'rb') as reader:
     input_meta_data = json.loads(reader.read().decode('utf-8'))
-  
+
   num_labels = input_meta_data["num_labels"]
   FLAGS.max_seq_length = input_meta_data["max_seq_length"]
   processor_type = input_meta_data['processor_type']
-  
+
   if not FLAGS.do_train and not FLAGS.do_eval and not FLAGS.do_predict:
     raise ValueError(
         "At least one of `do_train`, `do_eval` or `do_predict' must be True.")
@@ -259,7 +259,7 @@ def main(_):
     num_train_steps = int(
         len_train_examples / FLAGS.train_batch_size * FLAGS.num_train_epochs)
     num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
-  
+
   loss_multiplier = 1.0 / strategy.num_replicas_in_sync
 
   with strategy.scope():
@@ -286,7 +286,7 @@ def main(_):
       seq_length=FLAGS.max_seq_length,
       batch_size=FLAGS.train_batch_size,
       drop_remainder=False)
-    
+
     eval_input_fn = functools.partial(
       create_classifier_dataset,
       FLAGS.eval_data_path,
@@ -302,7 +302,7 @@ def main(_):
         checkpoint_path = os.path.join(FLAGS.output_dir, 'checkpoint')
         checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True)
         custom_callbacks = [summary_callback, checkpoint_callback]
-        
+
         if FLAGS.custom_training_loop:
             loss_fn = get_loss_fn(num_labels,loss_factor=loss_multiplier)
             model = run_customized_training_loop(strategy = strategy,
@@ -320,7 +320,7 @@ def main(_):
             training_dataset = train_input_fn()
             evaluation_dataset = eval_input_fn()
             model.fit(x=training_dataset,validation_data=evaluation_dataset,epochs=FLAGS.num_train_epochs,callbacks=custom_callbacks)
-    
+
 
   if FLAGS.do_eval:
     len_eval_examples = input_meta_data['eval_data_size']
