@@ -89,20 +89,6 @@ Above cmd would result in dev set `accuracy` of `76.22` in CoLA task
 
 The above code tested on TITAN RTX 24GB single GPU
 
-### Ignore
-Below warning will be displayed if you use keras model.fit method at end of each epoch. Issue with training steps calculation when `tf.data` provided to `model.fit()`
-Have no effect on model performance so ignore. Mostly will fixed in the next tf2 relase . [Issue-link](https://github.com/tensorflow/tensorflow/issues/25254)
-```
-2019-10-31 13:35:48.322897: W tensorflow/core/common_runtime/base_collective_executor.cc:216] BaseCollectiveExecutor::StartAbort Out of range:
-End of sequence
-         [[{{node IteratorGetNext}}]]
-         [[model_1/albert_model/word_embeddings/Shape/_10]]
-2019-10-31 13:36:03.302722: W tensorflow/core/common_runtime/base_collective_executor.cc:216] BaseCollectiveExecutor::StartAbort Out of range:
-End of sequence
-         [[{{node IteratorGetNext}}]]
-         [[IteratorGetNext/_4]]
-```
-
 
 ### SQuAD
 
@@ -152,10 +138,24 @@ python run_squad.py \
 
 
 
-### Multi-GPU training
+### Multi-GPU training and XLA
 
-Use flag `--strategy_type=mirror` for Multi GPU training. Currently All the exsisting GPUs in the enviorment will be used.
+- Use flag `--strategy_type=mirror` for Multi GPU training. Currently All the existing GPUs in the environment will be used.
+- Use flag `--enable-xla` to enable XLA. Model training starting time will be increase.(JIT compilation)
 
+### Ignore
+Below warning will be displayed if you use keras model.fit method at end of each epoch. Issue with training steps calculation when `tf.data` provided to `model.fit()`
+Have no effect on model performance so ignore. Mostly will fixed in the next tf2 relase . [Issue-link](https://github.com/tensorflow/tensorflow/issues/25254)
+```
+2019-10-31 13:35:48.322897: W tensorflow/core/common_runtime/base_collective_executor.cc:216] BaseCollectiveExecutor::StartAbort Out of range:
+End of sequence
+         [[{{node IteratorGetNext}}]]
+         [[model_1/albert_model/word_embeddings/Shape/_10]]
+2019-10-31 13:36:03.302722: W tensorflow/core/common_runtime/base_collective_executor.cc:216] BaseCollectiveExecutor::StartAbort Out of range:
+End of sequence
+         [[{{node IteratorGetNext}}]]
+         [[IteratorGetNext/_4]]
+```
 
 
 ## References
