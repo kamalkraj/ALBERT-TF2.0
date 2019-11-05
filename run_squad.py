@@ -89,8 +89,6 @@ flags.DEFINE_string(
     "init_checkpoint", None,
     "Initial checkpoint (usually from a pre-trained ALBERT model).")
 
-flags.DEFINE_string("input_meta_data_path", None, "input_meta_data_path")
-
 flags.DEFINE_bool(
     "do_lower_case", True,
     "Whether to lower case the input text. Should be True for uncased "
