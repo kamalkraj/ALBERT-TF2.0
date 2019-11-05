@@ -303,6 +303,9 @@ def main(_):
         checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True)
         custom_callbacks = [summary_callback, checkpoint_callback]
 
+        def metric_fn():
+            return tf.keras.metrics.SparseCategoricalAccuracy(dtype=tf.float32)
+
         if FLAGS.custom_training_loop:
             loss_fn = get_loss_fn(num_labels,loss_factor=loss_multiplier)
             model = run_customized_training_loop(strategy = strategy,
@@ -314,7 +317,7 @@ def main(_):
                     epochs=FLAGS.num_train_epochs,
                     eval_input_fn = eval_input_fn,
                     eval_steps = int(input_meta_data['eval_data_size']/FLAGS.eval_batch_size),
-                    metric_fn = tf.keras.metrics.SparseCategoricalAccuracy,
+                    metric_fn = get_metric_fn,
                     custom_callbacks = custom_callbacks)
         else:
             training_dataset = train_input_fn()
