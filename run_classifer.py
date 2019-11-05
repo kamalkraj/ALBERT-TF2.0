@@ -317,7 +317,7 @@ def main(_):
                     epochs=FLAGS.num_train_epochs,
                     eval_input_fn = eval_input_fn,
                     eval_steps = int(input_meta_data['eval_data_size']/FLAGS.eval_batch_size),
-                    metric_fn = get_metric_fn,
+                    metric_fn = metric_fn,
                     custom_callbacks = custom_callbacks)
         else:
             training_dataset = train_input_fn()
