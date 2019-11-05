@@ -9,19 +9,12 @@ This repository contains TensorFlow 2.0 implementation for ALBERT.
 
 ## Download ALBERT TF 2.0 weights
 
-#### Verison 1
-
-- [base](https://drive.google.com/open?id=1WDz1193fEo8vROpi-hWn3hveMmddLjpy)
-- [large](https://drive.google.com/open?id=1j4ePHivAXHNqqNucZOocwlkyneQyUROl)
-- [xlarge](https://drive.google.com/open?id=10o7l7c7Y5UlkSQmFca0_iaRsGIPmJ5Ya)
-- [xxlarge](https://drive.google.com/open?id=1gl5lOiAHq29C_sG6GoXLeZJHKDD2Gfju)
-
-#### Version 2
-
-- [base](https://drive.google.com/open?id=1FkrvdQnJR9za9Pv8cuiEXd1EI2hxx31a)
-- [large](https://drive.google.com/open?id=1xADTTjwTogFmnhNU3EPJ86slykoSL4L7)
-- [xlarge](https://drive.google.com/open?id=1GsAU_RqO8Pl7oPecj0opjA-4ktI8-4oX)
-- [xxlarge](https://drive.google.com/open?id=1JtQcGKtt0QZThXS1jz2v5x72TrYYjg8N)
+|                                   Verison 1                                   |                                   Version 2                                   |
+|:-----------------------------------------------------------------------------:|:-----------------------------------------------------------------------------:|
+|   [base](https://drive.google.com/open?id=1WDz1193fEo8vROpi-hWn3hveMmddLjpy)  |   [base](https://drive.google.com/open?id=1FkrvdQnJR9za9Pv8cuiEXd1EI2hxx31a)  |
+|  [large](https://drive.google.com/open?id=1j4ePHivAXHNqqNucZOocwlkyneQyUROl)  |  [large](https://drive.google.com/open?id=1xADTTjwTogFmnhNU3EPJ86slykoSL4L7)  |
+|  [xlarge](https://drive.google.com/open?id=10o7l7c7Y5UlkSQmFca0_iaRsGIPmJ5Ya) |  [xlarge](https://drive.google.com/open?id=1GsAU_RqO8Pl7oPecj0opjA-4ktI8-4oX) |
+| [xxlarge](https://drive.google.com/open?id=1gl5lOiAHq29C_sG6GoXLeZJHKDD2Gfju) | [xxlarge](https://drive.google.com/open?id=1JtQcGKtt0QZThXS1jz2v5x72TrYYjg8N) |
 
 unzip the model inside repo.
 
