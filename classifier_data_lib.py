@@ -173,18 +173,18 @@ class MnliProcessor(DataProcessor):
   def get_train_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        self._read_tsv(os.path.join(data_dir, "MNLI", "train.tsv")), "train")
 
   def get_dev_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "dev_matched.tsv")),
+        self._read_tsv(os.path.join(data_dir, "MNLI", "dev_matched.tsv")),
         "dev_matched")
 
   def get_test_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test_matched.tsv")), "test")
+        self._read_tsv(os.path.join(data_dir, "MNLI", "test_matched.tsv")), "test")
 
   def get_labels(self):
     """See base class."""
@@ -220,17 +220,17 @@ class MrpcProcessor(DataProcessor):
   def get_train_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        self._read_tsv(os.path.join(data_dir, "MRPC", "train.tsv")), "train")
 
   def get_dev_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+        self._read_tsv(os.path.join(data_dir, "MRPC", "dev.tsv")), "dev")
 
   def get_test_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
+        self._read_tsv(os.path.join(data_dir, "MRPC", "test.tsv")), "test")
 
   def get_labels(self):
     """See base class."""
@@ -266,17 +266,17 @@ class ColaProcessor(DataProcessor):
   def get_train_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        self._read_tsv(os.path.join(data_dir, "CoLA", "train.tsv")), "train")
 
   def get_dev_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+        self._read_tsv(os.path.join(data_dir, "CoLA", "dev.tsv")), "dev")
 
   def get_test_examples(self, data_dir):
     """See base class."""
     return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
+        self._read_tsv(os.path.join(data_dir, "CoLA", "test.tsv")), "test")
 
   def get_labels(self):
     """See base class."""
@@ -306,6 +306,345 @@ class ColaProcessor(DataProcessor):
         label = tokenization.preprocess_text(line[1])
       examples.append(
           InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+    return examples
+
+class MisMnliProcessor(MnliProcessor):
+  """Processor for the Mismatched MultiNLI data set (GLUE version)."""
+
+  @staticmethod
+  def get_processor_name():
+    """See base class."""
+    return "MISMNLI"
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "MNLI", "dev_mismatched.tsv")),
+        "dev")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "MNLI", "test_mismatched.tsv")),
+        "test")
+
+class Sst2Processor(DataProcessor):
+  """Processor for the SST-2 data set (GLUE version)."""
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "SST-2", "train.tsv")), "train")
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "SST-2", "dev.tsv")), "dev")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "SST-2", "test.tsv")), "test")
+
+  def get_labels(self):
+    """See base class."""
+    return ["0", "1"]
+
+  @staticmethod
+  def get_processor_name():
+    """See base class."""
+    return "SST2"
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    for (i, line) in enumerate(lines):
+      if i == 0:
+        continue
+      if set_type != "test":
+        guid = "%s-%s" % (set_type, i)
+        text_a = tokenization.preprocess_text(line[0],lower=FLAGS.do_lower_case)
+        label = tokenization.preprocess_text(line[1],lower=FLAGS.do_lower_case)
+      else:
+        guid = tokenization.preprocess_text(line[0],lower=FLAGS.do_lower_case)
+        # guid = "%s-%s" % (set_type, line[0])
+        text_a = tokenization.preprocess_text(line[1],lower=FLAGS.do_lower_case)
+        label = "0"
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+    return examples
+
+
+class StsbProcessor(DataProcessor):
+  """Processor for the STS-B data set (GLUE version)."""
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "STS-B", "train.tsv")), "train")
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "STS-B", "dev.tsv")), "dev")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "STS-B", "test.tsv")), "test")
+
+  def get_labels(self):
+    """See base class."""
+    return [None]
+  
+  @staticmethod
+  def get_processor_name():
+    """See base class."""
+    return "STSB"
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    for (i, line) in enumerate(lines):
+      if i == 0:
+        continue
+      guid = tokenization.preprocess_text(line[0],lower=FLAGS.do_lower_case)
+      # guid = "%s-%s" % (set_type, line[0])
+      text_a = tokenization.preprocess_text(line[7],lower=FLAGS.do_lower_case)
+      text_b = tokenization.preprocess_text(line[8],lower=FLAGS.do_lower_case)
+      if set_type != "test":
+        label = float(line[-1])
+      else:
+        label = 0
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+    return examples
+
+
+class QqpProcessor(DataProcessor):
+  """Processor for the QQP data set (GLUE version)."""
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "QQP", "train.tsv")), "train")
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "QQP", "dev.tsv")), "dev")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "QQP", "test.tsv")), "test")
+
+  def get_labels(self):
+    """See base class."""
+    return ["0", "1"]
+  
+  @staticmethod
+  def get_processor_name():
+    """See base class."""
+    return "QQP"
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    for (i, line) in enumerate(lines):
+      if i == 0:
+        continue
+      guid = line[0]
+      # guid = "%s-%s" % (set_type, line[0])
+      if set_type != "test":
+        try:
+          text_a = tokenization.preprocess_text(line[3],lower=FLAGS.do_lower_case)
+          text_b = tokenization.preprocess_text(line[4],lower=FLAGS.do_lower_case)
+          label = tokenization.preprocess_text(line[5],lower=FLAGS.do_lower_case)
+        except IndexError:
+          continue
+      else:
+        text_a = tokenization.preprocess_text(line[1],lower=FLAGS.do_lower_case)
+        text_b = tokenization.preprocess_text(line[2],lower=FLAGS.do_lower_case)
+        label = "0"
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+    return examples
+
+
+class QnliProcessor(DataProcessor):
+  """Processor for the QNLI data set (GLUE version)."""
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "QNLI", "train.tsv")), "train")
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "QNLI", "dev.tsv")),
+        "dev_matched")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "QNLI", "test.tsv")),
+        "test_matched")
+
+  def get_labels(self):
+    """See base class."""
+    return ["entailment", "not_entailment"]
+  
+  @staticmethod
+  def get_processor_name():
+    """See base class."""
+    return "QNLI"
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    for (i, line) in enumerate(lines):
+      if i == 0:
+        continue
+      guid = tokenization.preprocess_text(line[0],lower=FLAGS.do_lower_case)
+      # guid = "%s-%s" % (set_type, line[0])
+      text_a = tokenization.preprocess_text(line[1],lower=FLAGS.do_lower_case)
+      text_b = tokenization.preprocess_text(line[2],lower=FLAGS.do_lower_case)
+      if set_type == "test_matched":
+        label = "entailment"
+      else:
+        label = tokenization.preprocess_text(line[-1],lower=FLAGS.do_lower_case)
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+    return examples
+
+
+class RteProcessor(DataProcessor):
+  """Processor for the RTE data set (GLUE version)."""
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "RTE", "train.tsv")), "train")
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "RTE", "dev.tsv")), "dev")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "RTE", "test.tsv")), "test")
+
+  def get_labels(self):
+    """See base class."""
+    return ["entailment", "not_entailment"]
+  
+  @staticmethod
+  def get_processor_name():
+    """See base class."""
+    return "RTE"
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    for (i, line) in enumerate(lines):
+      if i == 0:
+        continue
+      guid = tokenization.preprocess_text(line[0],lower=FLAGS.do_lower_case)
+      # guid = "%s-%s" % (set_type, line[0])
+      text_a = tokenization.preprocess_text(line[1],lower=FLAGS.do_lower_case)
+      text_b = tokenization.preprocess_text(line[2],lower=FLAGS.do_lower_case)
+      if set_type == "test":
+        label = "entailment"
+      else:
+        label = tokenization.preprocess_text(line[-1],lower=FLAGS.do_lower_case)
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+    return examples
+
+
+class WnliProcessor(DataProcessor):
+  """Processor for the WNLI data set (GLUE version)."""
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "WNLI", "train.tsv")), "train")
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "WNLI", "dev.tsv")), "dev")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "WNLI", "test.tsv")), "test")
+
+  def get_labels(self):
+    """See base class."""
+    return ["0", "1"]
+  
+  @staticmethod
+  def get_processor_name():
+    """See base class."""
+    return "WNLI"
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    for (i, line) in enumerate(lines):
+      if i == 0:
+        continue
+      guid = tokenization.preprocess_text(line[0],lower=FLAGS.do_lower_case)
+      # guid = "%s-%s" % (set_type, line[0])
+      text_a = tokenization.preprocess_text(line[1],lower=FLAGS.do_lower_case)
+      text_b = tokenization.preprocess_text(line[2],lower=FLAGS.do_lower_case)
+      if set_type != "test":
+        label = tokenization.preprocess_text(line[-1],lower=FLAGS.do_lower_case)
+      else:
+        label = "0"
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+    return examples
+
+class AXProcessor(DataProcessor):
+  """Processor for the AX data set (GLUE version)."""
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "diagnostic", "diagnostic.tsv")),
+        "test")
+
+  def get_labels(self):
+    """See base class."""
+    return ["contradiction", "entailment", "neutral"]
+  
+  @staticmethod
+  def get_processor_name():
+    """See base class."""
+    return "AX"
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    for (i, line) in enumerate(lines):
+      if i == 0:
+        continue
+      # Note(mingdachen): We will rely on this guid for GLUE submission.
+      guid = tokenization.preprocess_text(line[0],lower=FLAGS.do_lower_case)
+      text_a = tokenization.preprocess_text(line[1],lower=FLAGS.do_lower_case)
+      text_b = tokenization.preprocess_text(line[2],lower=FLAGS.do_lower_case)
+      if set_type == "test":
+        label = "contradiction"
+      else:
+        label = tokenization.preprocess_text(line[-1],lower=FLAGS.do_lower_case)
+      examples.append(
+          InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
 
 def convert_single_example(ex_index, example, label_list, max_seq_length,

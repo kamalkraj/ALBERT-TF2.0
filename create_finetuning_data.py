@@ -14,15 +14,13 @@
 # ==============================================================================
 """BERT finetuning task dataset generator."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import json
 
-from absl import app
-from absl import flags
 import tensorflow as tf
+from absl import app, flags, logging
+
 import classifier_data_lib
 import squad_lib
 
@@ -40,7 +38,8 @@ flags.DEFINE_string(
     "for the task.")
 
 flags.DEFINE_enum("classification_task_name", "MNLI",
-                  ["CoLA", "MNLI", "MRPC", "XNLI"],
+                  ["COLA", "STS", "SST", "MNLI", "QNLI",
+                      "QQP", "RTE", "MRPC", "WNLI", "XNLI", ],
                   "The name of the task to train ALBERT classifier.")
 
 # ALBERT Squad task specific flags.
@@ -94,50 +93,57 @@ flags.DEFINE_integer(
 
 
 def generate_classifier_dataset():
-  """Generates classifier dataset and returns input meta data."""
-  assert FLAGS.input_data_dir and FLAGS.classification_task_name
+    """Generates classifier dataset and returns input meta data."""
+    assert FLAGS.input_data_dir and FLAGS.classification_task_name
 
-  processors = {
-      "cola": classifier_data_lib.ColaProcessor,
-      "mnli": classifier_data_lib.MnliProcessor,
-      "mrpc": classifier_data_lib.MrpcProcessor,
-      "xnli": classifier_data_lib.XnliProcessor,
-  }
-  task_name = FLAGS.classification_task_name.lower()
-  if task_name not in processors:
-    raise ValueError("Task not found: %s" % (task_name))
-  processor = processors[task_name]()
-  return classifier_data_lib.generate_tf_record_from_data_file(
-      processor,
-      FLAGS.input_data_dir,
-      FLAGS.spm_model_file,
-      train_data_output_path=FLAGS.train_data_output_path,
-      eval_data_output_path=FLAGS.eval_data_output_path,
-      max_seq_length=FLAGS.max_seq_length,
-      do_lower_case=FLAGS.do_lower_case)
+    processors = {
+        "cola": classifier_data_lib.ColaProcessor,
+        "sts": classifier_data_lib.StsbProcessor,
+        "sst": classifier_data_lib.Sst2Processor,
+        "mnli": classifier_data_lib.MnliProcessor,
+        "qnli": classifier_data_lib.QnliProcessor,
+        "qqp": classifier_data_lib.QqpProcessor,
+        "rte": classifier_data_lib.RteProcessor,
+        "mrpc": classifier_data_lib.MrpcProcessor,
+        "wnli": classifier_data_lib.WnliProcessor,
+        "xnli": classifier_data_lib.XnliProcessor,
+    }
+    task_name = FLAGS.classification_task_name.lower()
+    if task_name not in processors:
+        raise ValueError("Task not found: %s" % (task_name))
+    processor = processors[task_name]()
+    return classifier_data_lib.generate_tf_record_from_data_file(
+        processor,
+        FLAGS.input_data_dir,
+        FLAGS.spm_model_file,
+        train_data_output_path=FLAGS.train_data_output_path,
+        eval_data_output_path=FLAGS.eval_data_output_path,
+        max_seq_length=FLAGS.max_seq_length,
+        do_lower_case=FLAGS.do_lower_case)
 
 
 def generate_squad_dataset():
-  """Generates squad training dataset and returns input meta data."""
-  assert FLAGS.squad_data_file
-  return squad_lib.generate_tf_record_from_json_file(
-      FLAGS.squad_data_file, FLAGS.spm_model_file, FLAGS.train_data_output_path,
-      FLAGS.max_seq_length, FLAGS.do_lower_case, FLAGS.max_query_length,
-      FLAGS.doc_stride, FLAGS.version_2_with_negative)
+    """Generates squad training dataset and returns input meta data."""
+    assert FLAGS.squad_data_file
+    return squad_lib.generate_tf_record_from_json_file(
+        FLAGS.squad_data_file, FLAGS.spm_model_file, FLAGS.train_data_output_path,
+        FLAGS.max_seq_length, FLAGS.do_lower_case, FLAGS.max_query_length,
+        FLAGS.doc_stride, FLAGS.version_2_with_negative)
 
 
 def main(_):
-  if FLAGS.fine_tuning_task_type == "classification":
-    input_meta_data = generate_classifier_dataset()
-  else:
-    input_meta_data = generate_squad_dataset()
+    logging.set_verbosity(logging.INFO)
+    if FLAGS.fine_tuning_task_type == "classification":
+        input_meta_data = generate_classifier_dataset()
+    else:
+        input_meta_data = generate_squad_dataset()
 
-  with tf.io.gfile.GFile(FLAGS.meta_data_file_path, "w") as writer:
-    writer.write(json.dumps(input_meta_data, indent=4) + "\n")
+    with tf.io.gfile.GFile(FLAGS.meta_data_file_path, "w") as writer:
+        writer.write(json.dumps(input_meta_data, indent=4) + "\n")
 
 
 if __name__ == "__main__":
-  flags.mark_flag_as_required("spm_model_file")
-  flags.mark_flag_as_required("train_data_output_path")
-  flags.mark_flag_as_required("meta_data_file_path")
-  app.run(main)
+    flags.mark_flag_as_required("spm_model_file")
+    flags.mark_flag_as_required("train_data_output_path")
+    flags.mark_flag_as_required("meta_data_file_path")
+    app.run(main)

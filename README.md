@@ -48,7 +48,7 @@ export OUTPUT_DIR=cola_processed
 mkdir $OUTPUT_DIR
 
 python create_finetuning_data.py \
- --input_data_dir=${GLUE_DIR}/${TASK_NAME}/ \
+ --input_data_dir=${GLUE_DIR}/ \
  --spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model \
  --train_data_output_path=${OUTPUT_DIR}/${TASK_NAME}_train.tf_record \
  --eval_data_output_path=${OUTPUT_DIR}/${TASK_NAME}_eval.tf_record \
@@ -65,11 +65,11 @@ python run_classifer.py \
 --train_data_path=${OUTPUT_DIR}/${TASK_NAME}_train.tf_record \
 --eval_data_path=${OUTPUT_DIR}/${TASK_NAME}_eval.tf_record \
 --input_meta_data_path=${OUTPUT_DIR}/${TASK_NAME}_meta_data \
---albert_config_file=large/config.json \
+--albert_config_file=${ALBERT_DIR}/config.json \
 --task_name=${TASK_NAME} \
---spm_model_file=large/vocab/30k-clean.model \
+--spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model \
 --output_dir=${MODEL_DIR} \
---init_checkpoint=large/tf2_model.h5 \
+--init_checkpoint=${ALBERT_DIR}/tf2_model.h5 \
 --do_train \
 --do_eval \
 --train_batch_size=16 \
@@ -100,6 +100,43 @@ End of sequence
 ### SQuAD
 
 - WIP
+
+#### Training Data Preparation
+```bash
+export SQUAD_DIR=SQuAD
+export SQUAD_VERSION=v1.1
+export ALBERT_DIR=large
+export OUTPUT_DIR=squad_out_${SQUAD_VERSION}
+mkdir $OUTPUT_DIR
+
+python create_finetuning_data.py \
+--squad_data_file=${SQUAD_DIR}/train-${SQUAD_VERSION}.json \
+--spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model  \
+--train_data_output_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_train.tf_record  \
+--meta_data_file_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data \
+--fine_tuning_task_type=squad \
+--max_seq_length=384
+```
+
+### Running Model
+```bash
+
+python run_squad.py \
+  --mode=train_and_predict \
+  --input_meta_data_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data \
+  --train_data_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_train.tf_record \
+  --predict_file=${SQUAD_DIR}/dev-${SQUAD_VERSION}.json \
+  --albert_config_file=${ALBERT_DIR}/config.json \
+  --init_checkpoint=${ALBERT_DIR}/tf2_model.h5 \
+  --spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model \
+  --train_batch_size=48 \
+  --predict_batch_size=48 \
+  --learning_rate=1e-5 \
+  --num_train_epochs=3 \
+  --model_dir=${OUTPUT_DIR} \
+  --strategy_type=mirror
+```
+
 
 
 ### Multi-GPU training 

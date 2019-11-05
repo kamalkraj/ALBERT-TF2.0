@@ -33,7 +33,8 @@ from six.moves import zip
 import tokenization
 from albert import AlbertConfig, AlbertModel
 from input_pipeline import create_classifier_dataset
-from optimization import LAMB, WarmUp
+from optimization import AdamWeightDecay,LAMB, WarmUp
+from model_training_utils import run_customized_training_loop
 
 FLAGS = flags.FLAGS
 
@@ -88,6 +89,8 @@ flags.DEFINE_integer(
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
 
+flags.DEFINE_float("classifier_dropout",0.1,"classification layer dropout")
+
 flags.DEFINE_bool("do_train", False, "Whether to run training.")
 
 flags.DEFINE_bool("do_eval", False, "Whether to run eval on the dev set.")
@@ -112,6 +115,10 @@ flags.DEFINE_float(
     "Proportion of training to perform linear learning rate warmup for. "
     "E.g., 0.1 = 10% of training.")
 
+flags.DEFINE_enum("optimizer","AdamW",["LAMB","AdamW"],"Optimizer for training LAMB/AdamW")
+
+flags.DEFINE_bool("custom_training_loop",False,"Use Cutsom training loop instead of model.fit")
+
 flags.DEFINE_integer("seed", 42, "random_seed")
 
 def set_config_v2(enable_xla=False):
@@ -124,19 +131,35 @@ def set_config_v2(enable_xla=False):
         {'pin_to_host_optimization': False}
     )
 
+def get_loss_fn(num_classes, loss_factor=1.0):
+  """Gets the classification loss function."""
+
+  def classification_loss_fn(labels, logits):
+    """Classification loss."""
+    labels = tf.squeeze(labels)
+    log_probs = tf.nn.log_softmax(logits, axis=-1)
+    one_hot_labels = tf.one_hot(
+        tf.cast(labels, dtype=tf.int32), depth=num_classes, dtype=tf.float32)
+    per_example_loss = -tf.reduce_sum(
+        tf.cast(one_hot_labels, dtype=tf.float32) * log_probs, axis=-1)
+    loss = tf.reduce_mean(per_example_loss)
+    loss *= loss_factor
+    return loss
+
+  return classification_loss_fn
 
 def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learning_rate,
-                     num_train_steps, num_warmup_steps):
+                     num_train_steps, num_warmup_steps,loss_multiplier):
     """Returns keras fuctional model"""
     float_type = tf.float32
-    # hidden_dropout_prob = 0.9 # as per original code relased
+    hidden_dropout_prob = FLAGS.classifier_dropout # as per original code relased
     input_word_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='input_word_ids')
     input_mask = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='input_mask')
     input_type_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='input_type_ids')
-    
+
     albert_layer = AlbertModel(config=albert_config, float_type=float_type)
 
     pooled_output, _ = albert_layer(input_word_ids, input_mask, input_type_ids)
@@ -145,13 +168,13 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
                                   outputs=[pooled_output])
 
     albert_model.load_weights(init_checkpoint)
-                                                
+
     initializer = tf.keras.initializers.TruncatedNormal(stddev=albert_config.initializer_range)
 
-    output = tf.keras.layers.Dropout(rate=albert_config.hidden_dropout_prob)(pooled_output)
+    output = tf.keras.layers.Dropout(rate=hidden_dropout_prob)(pooled_output)
+
     output = tf.keras.layers.Dense(
         num_labels,
-        activation="softmax",
         kernel_initializer=initializer,
         name='output',
         dtype=float_type)(
@@ -163,25 +186,30 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
             'input_type_ids': input_type_ids
         },
         outputs=output)
-    
+
     learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(initial_learning_rate=learning_rate,
                                                 decay_steps=num_train_steps,end_learning_rate=0.0)
     if num_warmup_steps:
         learning_rate_fn = WarmUp(initial_learning_rate=learning_rate,
                                 decay_schedule_fn=learning_rate_fn,
                                 warmup_steps=num_warmup_steps)
-    lamp_optimizer = LAMB(
+    if FLAGS.optimizer == "LAMB":
+        optimizer_fn = LAMB
+    else:
+        optimizer_fn = AdamWeightDecay
+
+    optimizer = optimizer_fn(
         learning_rate=learning_rate_fn,
         weight_decay_rate=FLAGS.weight_decay,
         beta_1=0.9,
         beta_2=0.999,
         epsilon=FLAGS.adam_epsilon,
         exclude_from_weight_decay=['layer_norm', 'bias'])
-    
-    loss_fct = tf.keras.losses.SparseCategoricalCrossentropy()
 
-    model.compile(optimizer=lamp_optimizer,loss=loss_fct,metrics=['accuracy'])
-    
+    loss_fct = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+
+    model.compile(optimizer=optimizer,loss=loss_fct,metrics=['accuracy'])
+
     return model
 
 
@@ -194,7 +222,7 @@ def main(_):
 
   strategy = None
   if FLAGS.strategy_type == "one":
-	  strategy = tf.distribute.OneDeviceStrategy()
+	  strategy = tf.distribute.OneDeviceStrategy("GPU:0")
   if FLAGS.strategy_type == "mirror":
 	  strategy = tf.distribute.MirroredStrategy()
   else:
@@ -203,11 +231,11 @@ def main(_):
 
   with tf.io.gfile.GFile(FLAGS.input_meta_data_path, 'rb') as reader:
     input_meta_data = json.loads(reader.read().decode('utf-8'))
-  
+
   num_labels = input_meta_data["num_labels"]
   FLAGS.max_seq_length = input_meta_data["max_seq_length"]
   processor_type = input_meta_data['processor_type']
-  
+
   if not FLAGS.do_train and not FLAGS.do_eval and not FLAGS.do_predict:
     raise ValueError(
         "At least one of `do_train`, `do_eval` or `do_predict' must be True.")
@@ -224,11 +252,15 @@ def main(_):
 
   num_train_steps = None
   num_warmup_steps = None
+  steps_per_epoch = None
   if FLAGS.do_train:
     len_train_examples = input_meta_data['train_data_size']
+    steps_per_epoch = int(len_train_examples / FLAGS.train_batch_size)
     num_train_steps = int(
         len_train_examples / FLAGS.train_batch_size * FLAGS.num_train_epochs)
     num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
+
+  loss_multiplier = 1.0 / strategy.num_replicas_in_sync
 
   with strategy.scope():
 	  model = get_model(
@@ -238,7 +270,8 @@ def main(_):
 		  init_checkpoint=FLAGS.init_checkpoint,
 		  learning_rate=FLAGS.learning_rate,
 		  num_train_steps=num_train_steps,
-		  num_warmup_steps=num_warmup_steps)
+		  num_warmup_steps=num_warmup_steps,
+          loss_multiplier=loss_multiplier)
   model.summary()
 
   if FLAGS.do_train:
@@ -253,7 +286,7 @@ def main(_):
       seq_length=FLAGS.max_seq_length,
       batch_size=FLAGS.train_batch_size,
       drop_remainder=False)
-    
+
     eval_input_fn = functools.partial(
       create_classifier_dataset,
       FLAGS.eval_data_path,
@@ -263,17 +296,31 @@ def main(_):
       drop_remainder=False)
 
     with strategy.scope():
-        training_dataset = train_input_fn()
-        evaluation_dataset = eval_input_fn()
 
         summary_dir = os.path.join(FLAGS.output_dir, 'summaries')
         summary_callback = tf.keras.callbacks.TensorBoard(summary_dir)
         checkpoint_path = os.path.join(FLAGS.output_dir, 'checkpoint')
         checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, save_weights_only=True)
         custom_callbacks = [summary_callback, checkpoint_callback]
-        
-        model.fit(x=training_dataset,validation_data=evaluation_dataset,epochs=FLAGS.num_train_epochs,callbacks=custom_callbacks)
-    
+
+        if FLAGS.custom_training_loop:
+            loss_fn = get_loss_fn(num_labels,loss_factor=loss_multiplier)
+            model = run_customized_training_loop(strategy = strategy,
+                    model = model,
+                    loss_fn = loss_fn,
+                    model_dir = checkpoint_path,
+                    train_input_fn = train_input_fn,
+                    steps_per_epoch = steps_per_epoch,
+                    epochs=FLAGS.num_train_epochs,
+                    eval_input_fn = eval_input_fn,
+                    eval_steps = int(input_meta_data['eval_data_size']/FLAGS.eval_batch_size),
+                    metric_fn = tf.keras.metrics.SparseCategoricalAccuracy,
+                    custom_callbacks = custom_callbacks)
+        else:
+            training_dataset = train_input_fn()
+            evaluation_dataset = eval_input_fn()
+            model.fit(x=training_dataset,validation_data=evaluation_dataset,epochs=FLAGS.num_train_epochs,callbacks=custom_callbacks)
+
 
   if FLAGS.do_eval:
     len_eval_examples = input_meta_data['eval_data_size']
@@ -281,7 +328,7 @@ def main(_):
     logging.info("***** Running evaluation *****")
     logging.info("  Num examples = %d", len_eval_examples)
     logging.info("  Batch size = %d", FLAGS.eval_batch_size)
-    
+    evaluation_dataset = eval_input_fn()
     with strategy.scope():
         loss,accuracy = model.evaluate(evaluation_dataset)
 
