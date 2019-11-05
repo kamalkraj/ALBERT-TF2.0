@@ -1,6 +1,8 @@
 # ALBERT-TF2.0
 ALBERT model Fine Tuning using TF2.0
 
+This repository contains TensorFlow 2.0 implementation for ALBERT.
+
 ## Requirements
 - python3
 - pip install -r requirements.txt
@@ -157,5 +159,6 @@ Use flag `--strategy_type=mirror` for Multi GPU training. Currently All the exsi
 
 
 ## References
-
-lots of code in this repo are adpted from multiple repos. No reference are added now. Will add evevrything.
+1. TensorFlow offical implementation of [BERT](https://github.com/tensorflow/models/tree/master/official/nlp/bert) in TF 2.0 . Lot of parts of code in this repo adapted from the above repo.
+2. LAMB optimizer from TensorFlow [addons](https://github.com/tensorflow/addons/blob/master/tensorflow_addons/optimizers/lamb.py)
+3. TF-HUB weights to TF 2.0 weights conversion : [KPE](https://github.com/kpe/bert-for-tf2)
