@@ -113,7 +113,7 @@ python create_finetuning_data.py \
 --squad_data_file=${SQUAD_DIR}/train-${SQUAD_VERSION}.json \
 --spm_model_file=large/vocab/30k-clean.model  \
 --train_data_output_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_train.tf_record  \
---meta_data_file_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data  
+--meta_data_file_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data \
 --fine_tuning_task_type=squad \
 --max_seq_length=384
 ```
@@ -123,12 +123,12 @@ python create_finetuning_data.py \
 
 python run_squad.py \
   --mode=train_and_predict \
-  --input_meta_data_path=${SQUAD_DIR}/squad_${SQUAD_VERSION}_meta_data \
-  --train_data_path=${SQUAD_DIR}/squad_${SQUAD_VERSION}_train.tf_record \
+  --input_meta_data_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data \
+  --train_data_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_train.tf_record \
   --predict_file=${SQUAD_DIR}/dev-${SQUAD_VERSION}.json \
   --albert_config_file=${ALBERT_DIR}/config.json \
   --init_checkpoint=${ALBERT_DIR}/tf2_model.h5 \
-  --spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model
+  --spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model \
   --train_batch_size=48 \
   --predict_batch_size=48 \
   --learning_rate=1e-5 \
