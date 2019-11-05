@@ -348,10 +348,9 @@ def train_squad(strategy,
     num_train_steps = None
     num_warmup_steps = None
     steps_per_epoch = int(num_train_examples / FLAGS.train_batch_size)
-    if FLAGS.do_train:
-        num_train_steps = int(
-            num_train_examples / FLAGS.train_batch_size * FLAGS.num_train_epochs)
-        num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
+    num_train_steps = int(
+        num_train_examples / FLAGS.train_batch_size * FLAGS.num_train_epochs)
+    num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
 
     with strategy.scope():
         albert_config = AlbertConfig.from_json_file(FLAGS.albert_config_file)
