@@ -353,6 +353,8 @@ def main(_):
   if FLAGS.do_predict:
 
     logging.info("***** Running prediction*****")
+    flags.mark_flag_as_required("input_data_dir")
+    flags.mark_flag_as_required("predict_data_path")
     tokenizer = tokenization.FullTokenizer(
         vocab_file=None,spm_model_file=FLAGS.spm_model_file, do_lower_case=FLAGS.do_lower_case)
 
