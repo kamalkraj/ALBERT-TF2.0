@@ -53,6 +53,11 @@ flags.DEFINE_string(
     "predict_data path for tfrecords for the task.")
 
 flags.DEFINE_string(
+    "input_data_dir", None,
+    "The input data dir. Should contain the .tsv files (or other data files) "
+    "for the task.")
+
+flags.DEFINE_string(
     "albert_config_file", None,
     "The config json file corresponding to the pre-trained ALBERT model. "
     "This specifies the model architecture.")
@@ -369,7 +374,7 @@ def main(_):
 
     processor = processors[task_name]()
 
-    predict_examples = processor.get_test_examples(FLAGS.data_dir)
+    predict_examples = processor.get_test_examples(FLAGS.input_data_dir)
 
     label_list = processor.get_labels()
     label_map = {i:label for i,label in enumerate(label_list)}
