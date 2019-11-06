@@ -33,13 +33,11 @@ from optimization import LAMB, AdamWeightDecay, WarmUp
 
 flags.DEFINE_enum(
     'mode', 'train_and_predict',
-    ['train_and_predict', 'train', 'predict', 'export_only'],
-    'One of {"train_and_predict", "train", "predict", "export_only"}. '
+    ['train_and_predict', 'train', 'predict'],
+    'One of {"train_and_predict", "train", "predict"}. '
     '`train_and_predict`: both train and predict to a json file. '
     '`train`: only trains the model. '
-    '`predict`: predict answers from the squad json file. '
-    '`export_only`: will take the latest checkpoint inside '
-    'model_dir and export a `SavedModel`.')
+    '`predict`: predict answers from the squad json file. ')
 
 flags.DEFINE_string('train_data_path', '',
                     'Training data path with train tfrecords.')
@@ -455,19 +453,6 @@ def predict_squad(strategy, input_meta_data):
         output_prediction_file,
         output_nbest_file,
         output_null_log_odds_file)
-
-
-def export_squad(model_export_path, input_meta_data):
-    """Exports a trained model as a `SavedModel` for inference.
-
-    Args:
-      model_export_path: a string specifying the path to the SavedModel directory.
-      input_meta_data: dictionary containing meta data about input and model.
-
-    Raises:
-      Export path is not specified, got an empty string or None.
-    """
-    pass
 
 
 def main(_):
