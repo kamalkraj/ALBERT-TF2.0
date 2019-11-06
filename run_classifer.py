@@ -404,7 +404,7 @@ def main(_):
         logging.info("***** Predict results *****")
         for (example, probability, prediction) in zip(predict_examples, probabilities, predictions):
             output_line = "\t".join(
-                str(class_probability)
+                str(class_probability.numpy())
                 for class_probability in probability) + "\n"
             pred_writer.write(output_line)
 
