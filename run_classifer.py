@@ -30,11 +30,12 @@ import tensorflow as tf
 from absl import app, flags, logging
 from six.moves import zip
 
+import classifier_data_lib
 import tokenization
 from albert import AlbertConfig, AlbertModel
 from input_pipeline import create_classifier_dataset
-from optimization import AdamWeightDecay,LAMB, WarmUp
 from model_training_utils import run_customized_training_loop
+from optimization import LAMB, AdamWeightDecay, WarmUp
 
 FLAGS = flags.FLAGS
 
@@ -46,6 +47,10 @@ flags.DEFINE_string(
 flags.DEFINE_string(
     "eval_data_path", None,
     "eval_data path for tfrecords for the task.")
+
+flags.DEFINE_string(
+    "predict_data_path", None,
+    "predict_data path for tfrecords for the task.")
 
 flags.DEFINE_string(
     "albert_config_file", None,
@@ -94,6 +99,8 @@ flags.DEFINE_float("classifier_dropout",0.1,"classification layer dropout")
 flags.DEFINE_bool("do_train", False, "Whether to run training.")
 
 flags.DEFINE_bool("do_eval", False, "Whether to run eval on the dev set.")
+
+flags.DEFINE_bool("do_predict", False ,"Whether to run prediction on the test set")
 
 flags.DEFINE_integer("train_batch_size", 32, "Total batch size for training.")
 
@@ -326,6 +333,7 @@ def main(_):
 
 
   if FLAGS.do_eval:
+
     len_eval_examples = input_meta_data['eval_data_size']
 
     logging.info("***** Running evaluation *****")
@@ -336,6 +344,68 @@ def main(_):
         loss,accuracy = model.evaluate(evaluation_dataset)
 
     print(f"loss : {loss} , Accuracy : {accuracy}")
+
+  if FLAGS.do_predict:
+
+    logging.info("***** Running prediction*****")
+    tokenizer = tokenization.FullTokenizer(
+        vocab_file=None,spm_model_file=FLAGS.spm_model_file, do_lower_case=FLAGS.do_lower_case)
+
+    processors = {
+    "cola": classifier_data_lib.ColaProcessor,
+    "sts": classifier_data_lib.StsbProcessor,
+    "sst": classifier_data_lib.Sst2Processor,
+    "mnli": classifier_data_lib.MnliProcessor,
+    "qnli": classifier_data_lib.QnliProcessor,
+    "qqp": classifier_data_lib.QqpProcessor,
+    "rte": classifier_data_lib.RteProcessor,
+    "mrpc": classifier_data_lib.MrpcProcessor,
+    "wnli": classifier_data_lib.WnliProcessor,
+    "xnli": classifier_data_lib.XnliProcessor,
+    }
+    task_name = FLAGS.task_name.lower()
+    if task_name not in processors:
+        raise ValueError("Task not found: %s" % (task_name))
+
+    processor = processors[task_name]()
+
+    predict_examples = processor.get_test_examples(FLAGS.data_dir)
+
+    label_list = processor.get_labels()
+    label_map = {i:label for i,label in enumerate(label_list)}
+
+    classifier_data_lib.file_based_convert_examples_to_features(predict_examples,
+                                        label_list, input_meta_data['max_seq_length'],
+                                        tokenizer, FLAGS.predict_data_path)
+
+    predict_input_fn = functools.partial(
+    create_classifier_dataset,
+    FLAGS.predict_data_path,
+    seq_length=input_meta_data['max_seq_length'],
+    batch_size=FLAGS.eval_batch_size,
+    is_training=False,
+    drop_remainder=False)
+    prediction_dataset = predict_input_fn()
+
+    with strategy.scope():
+        logits = model.predict(prediction_dataset)
+        predictions = tf.argmax(logits, axis=-1, output_type=tf.int32)
+        probabilities = tf.nn.softmax(logits, axis=-1)
+
+    output_predict_file = os.path.join(FLAGS.output_dir, "test_results.tsv")
+    output_submit_file = os.path.join(FLAGS.output_dir, "submit_results.tsv")
+    with tf.io.gfile.GFile(output_predict_file, "w") as pred_writer,\
+        tf.io.gfile.GFile(output_submit_file, "w") as sub_writer:
+        logging.info("***** Predict results *****")
+        for (example, probability, prediction) in zip(predict_examples, probabilities, predictions):
+            output_line = "\t".join(
+                str(class_probability)
+                for class_probability in probability) + "\n"
+            pred_writer.write(output_line)
+
+            actual_label = label_map[int(prediction)]
+            sub_writer.write(
+                six.ensure_str(example.guid) + "\t" + actual_label + "\n")
 
 
 if __name__ == "__main__":
