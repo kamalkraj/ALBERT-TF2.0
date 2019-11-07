@@ -129,6 +129,7 @@ class FeatureWriter(object):
     features["input_ids"] = create_int_feature(feature.input_ids)
     features["input_mask"] = create_int_feature(feature.input_mask)
     features["segment_ids"] = create_int_feature(feature.segment_ids)
+    features["p_mask"] = create_int_feature(feature.p_mask)
 
     if self.is_training:
       features["start_positions"] = create_int_feature([feature.start_position])
