@@ -152,7 +152,10 @@ def create_squad_dataset_v2(file_path, seq_length, batch_size, is_training):
   def _select_data_from_record(record):
     x, y = {}, {}
     for name, tensor in record.items():
-      if name in ('start_positions', 'end_positions','is_impossible'):
+      if name in ('end_positions','is_impossible'):
+        y[name] = tensor
+      elif name in ('start_postions'):
+        x[name] = tensor
         y[name] = tensor
       else:
         x[name] = tensor
