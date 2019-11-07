@@ -85,6 +85,7 @@ class InputFeatures(object):
                input_mask,
                segment_ids,
                paragraph_len,
+               p_mask=None,
                start_position=None,
                end_position=None,
                is_impossible=None):
@@ -102,6 +103,7 @@ class InputFeatures(object):
     self.start_position = start_position
     self.end_position = end_position
     self.is_impossible = is_impossible
+    self.p_mask = p_mask
 
 
 class FeatureWriter(object):
@@ -234,7 +236,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
   f = np.zeros((max_n, max_m), dtype=np.float32)
 
   for (example_index, example) in enumerate(examples):
-    
+
     if example_index % 100 == 0:
       logging.info("Converting {}/{} pos {} neg {}".format(
           example_index, len(examples), cnt_pos, cnt_neg))
@@ -256,9 +258,9 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
 
     para_tokens_ = []
     for para_token in para_tokens:
-       if type(para_token) == bytes:
-         para_token = para_token.decode("utf-8")
-       para_tokens_.append(para_token)
+      if type(para_token) == bytes:
+        para_token = para_token.decode("utf-8")
+      para_tokens_.append(para_token)
     para_tokens = para_tokens_
 
     chartok_to_tok_index = []
@@ -290,6 +292,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
       # f[i, j] = max(f[i - 1, j], f[i, j - 1], f[i - 1, j - 1] + match(i, j))
       for i in range(n):
 
+        # note(zhiliny):
         # unlike standard LCS, this is specifically optimized for the setting
         # because the mismatch between sentence pieces and original text will
         # be small
@@ -400,17 +403,21 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
       tokens = []
       token_is_max_context = {}
       segment_ids = []
+      p_mask = []
 
       cur_tok_start_to_orig_index = []
       cur_tok_end_to_orig_index = []
 
       tokens.append(tokenizer.sp_model.PieceToId("[CLS]"))
       segment_ids.append(0)
+      p_mask.append(0)
       for token in query_tokens:
         tokens.append(token)
         segment_ids.append(0)
+        p_mask.append(1)
       tokens.append(tokenizer.sp_model.PieceToId("[SEP]"))
       segment_ids.append(0)
+      p_mask.append(1)
 
       for i in range(doc_span.length):
         split_token_index = doc_span.start + i
@@ -425,8 +432,10 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
         token_is_max_context[len(tokens)] = is_max_context
         tokens.append(all_doc_tokens[split_token_index])
         segment_ids.append(1)
+        p_mask.append(0)
       tokens.append(tokenizer.sp_model.PieceToId("[SEP]"))
       segment_ids.append(1)
+      p_mask.append(1)
 
       paragraph_len = len(tokens)
       input_ids = tokens
@@ -440,6 +449,7 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
         input_ids.append(0)
         input_mask.append(0)
         segment_ids.append(0)
+        p_mask.append(1)
 
       assert len(input_ids) == max_seq_length
       assert len(input_mask) == max_seq_length
@@ -526,7 +536,8 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
           paragraph_len=paragraph_len,
           start_position=start_position,
           end_position=end_position,
-          is_impossible=span_is_impossible)
+          is_impossible=span_is_impossible,
+          p_mask=p_mask)
 
       # Run callback
       output_fn(feature)
@@ -630,7 +641,7 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
   example_index_to_features = collections.defaultdict(list)
   for feature in all_features:
     example_index_to_features[feature.example_index].append(feature)
-  
+
   unique_id_to_result = {}
   for result in all_results:
     unique_id_to_result[result.unique_id] = result
@@ -866,5 +877,5 @@ def generate_tf_record_from_json_file(input_file_path,
       "doc_stride": doc_stride,
       "version_2_with_negative": version_2_with_negative,
   }
-  
+
   return meta_data
