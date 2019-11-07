@@ -31,6 +31,22 @@ import tokenization
 
 FLAGS = flags.FLAGS
 
+_NbestPrediction = collections.namedtuple(  # pylint: disable=invalid-name
+                    "NbestPrediction", ["text", "start_logit", "end_logit"])
+
+# We can have documents that are longer than the maximum sequence length.
+    # To deal with this we do a sliding window approach, where we take chunks
+    # of the up to our max length with a stride of `doc_stride`.
+_DocSpan = collections.namedtuple(  # pylint: disable=invalid-name
+            "DocSpan", ["start", "length"])
+
+RawResult = collections.namedtuple("RawResult",
+                                   ["unique_id", "start_logits", "end_logits"])
+
+_PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
+      "PrelimPrediction",
+      ["feature_index", "start_index", "end_index", "start_logit", "end_logit"])
+
 class SquadExample(object):
   """A single training/test example for simple sequence classification.
      For examples without an answer, the start and end position are -1.
@@ -384,11 +400,6 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
     # The -3 accounts for [CLS], [SEP] and [SEP]
     max_tokens_for_doc = max_seq_length - len(query_tokens) - 3
 
-    # We can have documents that are longer than the maximum sequence length.
-    # To deal with this we do a sliding window approach, where we take chunks
-    # of the up to our max length with a stride of `doc_stride`.
-    _DocSpan = collections.namedtuple(  # pylint: disable=invalid-name
-        "DocSpan", ["start", "length"])
     doc_spans = []
     start_offset = 0
     while start_offset < len(all_doc_tokens):
@@ -628,10 +639,6 @@ def _check_is_max_context(doc_spans, cur_span_index, position):
   return cur_span_index == best_span_index
 
 
-RawResult = collections.namedtuple("RawResult",
-                                   ["unique_id", "start_logits", "end_logits"])
-
-
 def write_predictions(all_examples, all_features, all_results, n_best_size,
                       max_answer_length, do_lower_case, output_prediction_file,
                       output_nbest_file, output_null_log_odds_file):
@@ -646,10 +653,6 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
   unique_id_to_result = {}
   for result in all_results:
     unique_id_to_result[result.unique_id] = result
-
-  _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
-      "PrelimPrediction",
-      ["feature_index", "start_index", "end_index", "start_logit", "end_logit"])
 
   all_predictions = collections.OrderedDict()
   all_nbest_json = collections.OrderedDict()
@@ -717,9 +720,6 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
         prelim_predictions,
         key=lambda x: (x.start_logit + x.end_logit),
         reverse=True)
-
-    _NbestPrediction = collections.namedtuple(  # pylint: disable=invalid-name
-        "NbestPrediction", ["text", "start_logit", "end_logit"])
 
     seen_predictions = {}
     nbest = []
