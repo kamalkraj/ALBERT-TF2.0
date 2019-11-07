@@ -137,7 +137,8 @@ def get_albert_model(input_word_ids,
 
 
 class AlbertModel(tf.keras.layers.Layer):
-  """BERT model ("Bidirectional Encoder Representations from Transformers").
+  """ALBERT model ("ALBERT: A Lite BERT for Self-supervised Learning of
+  Language Representations").
 
   Example usage:
 
@@ -380,7 +381,7 @@ class EmbeddingPostprocessor(tf.keras.layers.Layer):
 
     output = self.output_layer_norm(output)
     output = self.output_dropout(output,training=kwargs.get('training', False))
-    
+
     projected_output = self.projection(output)
 
     return projected_output
