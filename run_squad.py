@@ -280,11 +280,11 @@ class ALBertQALayer(tf.keras.layers.Layer):
             start_features = tf.tile(start_features[None], [seq_len, 1, 1, 1])
             end_input = tf.concat([end_input, start_features], axis=-1)
             end_logits = self.end_logits_proj_layer0(end_input)
-            end_logits = tf.reshape(end_logits, [seq_len, -1, self.d_model])
+            end_logits = tf.reshape(end_logits, [seq_len, -1, self.hidden_size])
             end_logits = self.end_logits_layer_norm(end_logits)
 
             end_logits = tf.reshape(end_logits,
-                                    [seq_len, -1, self.start_n_top, self.d_model])
+                                    [seq_len, -1, self.start_n_top, self.hidden_size])
 
             end_logits = self.end_logits_proj_layer1(end_logits)
             end_logits = tf.reshape(
@@ -323,7 +323,7 @@ class ALBertQALayer(tf.keras.layers.Layer):
         if kwargs.get("training", False):
             return (start_log_probs, end_log_probs, cls_logits)
         else:
-            return (start_top_log_probs, start_top_index, end_top_log_probs, end_top_index)
+            return (start_top_log_probs, start_top_index, end_top_log_probs, end_top_index, cls_logits)
 
 
 class ALBertQAModel(tf.keras.Model):
@@ -362,7 +362,10 @@ class ALBertQAModel(tf.keras.Model):
         input_mask = inputs["input_mask"]
         segment_ids = inputs["segment_ids"]
         p_mask = inputs["p_mask"]
-        start_positions = inputs["start_positions"]
+        if kwargs.get('training',False):
+            start_positions = inputs["start_positions"]
+        else:
+            start_positions = None
         sequence_output = self.albert_model(
             [input_word_ids, input_mask, segment_ids], **kwargs)
         output = self.qalayer(
@@ -480,24 +483,33 @@ def get_raw_results(predictions):
 
 def get_raw_results_v2(predictions):
     """Converts multi-replica predictions to RawResult."""
-    for unique_ids, start_top_log_probs, start_top_index, end_top_log_probs, end_top_index in zip(predictions['unique_ids'],
+    for unique_ids, start_top_log_probs, start_top_index, end_top_log_probs, end_top_index, cls_logits in zip(predictions['unique_ids'],
                                                     predictions['start_top_log_probs'],
                                                     predictions['start_top_index'],
                                                     predictions['end_top_log_probs'],
-                                                    predictions['end_top_index']):
-        for values in zip(unique_ids.numpy(), start_top_log_probs.numpy(), start_top_index.numpy(), end_top_log_probs.numpy(), end_top_index.numpy()):
-            yield squad_lib.RawResult(
+                                                    predictions['end_top_index'],
+                                                    predictions['cls_logits']):
+        for values in zip(unique_ids.numpy(), start_top_log_probs.numpy(), start_top_index.numpy(), end_top_log_probs.numpy(), end_top_index.numpy(), cls_logits.numpy()):
+            yield squad_lib.RawResultV2(
                 unique_id=values[0],
                 start_top_log_probs=values[1].tolist(),
                 start_top_index=values[2].tolist(),
                 end_top_log_probs=values[3].tolist(),
-                end_top_index=values[4].tolist()
+                end_top_index=values[4].tolist(),
+                cls_logits=values[5].tolist()
                 )
 
 def predict_squad_customized(strategy, input_meta_data, albert_config,
                              predict_tfrecord_path, num_steps):
     """Make predictions using a Bert-based squad model."""
-    predict_dataset = input_pipeline.create_squad_dataset(
+    if FLAGS.version_2_with_negative:
+        predict_dataset = input_pipeline.create_squad_dataset_v2(
+            predict_tfrecord_path,
+            input_meta_data['max_seq_length'],
+            FLAGS.predict_batch_size,
+            is_training=False)
+    else:
+        predict_dataset = input_pipeline.create_squad_dataset(
         predict_tfrecord_path,
         input_meta_data['max_seq_length'],
         FLAGS.predict_batch_size,
@@ -528,12 +540,13 @@ def predict_squad_customized(strategy, input_meta_data, albert_config,
             x, _ = inputs
             if FLAGS.version_2_with_negative:
                 y = squad_model(x, training=False)
-                unique_ids, start_top_log_probs, start_top_index, end_top_log_probs, end_top_index = y
+                unique_ids, start_top_log_probs, start_top_index, end_top_log_probs, end_top_index, cls_logits = y
                 return dict(unique_ids=unique_ids,
                     start_top_log_probs=start_top_log_probs,
                     start_top_index=start_top_index,
                     end_top_log_probs=end_top_log_probs,
-                    end_top_index=end_top_index)
+                    end_top_index=end_top_index,
+                    cls_logits=cls_logits)
             else:
                 unique_ids, start_logits, end_logits = squad_model(
                     x, training=False)
