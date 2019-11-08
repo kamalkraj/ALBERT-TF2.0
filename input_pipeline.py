@@ -136,7 +136,7 @@ def create_squad_dataset_v2(file_path, seq_length, batch_size, is_training):
   name_to_features = {
       "unique_ids": tf.io.FixedLenFeature([], tf.int64),
       "input_ids": tf.io.FixedLenFeature([seq_length], tf.int64),
-      "input_mask": tf.io.FixedLenFeature([seq_length], tf.float32),
+      "input_mask": tf.io.FixedLenFeature([seq_length], tf.int64),
       "segment_ids": tf.io.FixedLenFeature([seq_length], tf.int64),
       "p_mask": tf.io.FixedLenFeature([seq_length], tf.float32)
   }
@@ -152,11 +152,10 @@ def create_squad_dataset_v2(file_path, seq_length, batch_size, is_training):
   def _select_data_from_record(record):
     x, y = {}, {}
     for name, tensor in record.items():
-      if name in ('end_positions','is_impossible'):
+      if name in ('start_positions','end_positions','is_impossible'):
         y[name] = tensor
-      elif name in ('start_postions'):
-        x[name] = tensor
-        y[name] = tensor
+        if name == 'start_positions':
+          x[name] = tensor
       else:
         x[name] = tensor
     return (x, y)

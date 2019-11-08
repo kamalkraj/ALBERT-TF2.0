@@ -163,7 +163,7 @@ class FeatureWriter(object):
       impossible = 0
       if feature.is_impossible:
         impossible = 1
-      features["is_impossible"] = create_int_feature([impossible])
+      features["is_impossible"] = create_float_feature([impossible])
 
     tf_example = tf.train.Example(features=tf.train.Features(feature=features))
     self._writer.write(tf_example.SerializeToString())

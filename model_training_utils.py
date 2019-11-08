@@ -202,10 +202,7 @@ def run_customized_training_loop(
           os.path.join(summary_dir, 'train'))
     else:
       train_summary_writer = None
-
-    # Collects training variables.
-    training_vars = model.trainable_variables
-
+    
     def _replicated_step(inputs):
       """Replicated training step."""
 
@@ -213,7 +210,8 @@ def run_customized_training_loop(
       with tf.GradientTape() as tape:
         model_outputs = model(inputs, training=True)
         loss = loss_fn(labels, model_outputs)
-
+      # Collects training variables.      
+      training_vars = model.trainable_variables
       grads = tape.gradient(loss, training_vars)
       optimizer.apply_gradients(zip(grads, training_vars))
       # For reporting, the metric takes the mean of losses.

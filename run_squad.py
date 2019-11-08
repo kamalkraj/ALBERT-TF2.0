@@ -353,7 +353,7 @@ class ALBertQAModel(tf.keras.Model):
             self.albert_model.load_weights(init_checkpoint)
 
         self.qalayer = ALBertQALayer(self.albert_config.hidden_size, start_n_top, end_n_top,
-                                     self.initializer, dropout,FLAGS.train_batch_size)
+                                     self.initializer, dropout,FLAGS.train_batch_size//4)
 
     def call(self, inputs, **kwargs):
         # unpacked_inputs = tf_utils.unpack_inputs(inputs)
@@ -437,8 +437,9 @@ def squad_loss_fn_v2(start_positions,
     total_loss = (start_loss + end_loss) * 0.5
 
     is_impossible = tf.reshape(is_impossible, [-1])
-    regression_loss = tf.nn.sigmoid_cross_entropy_with_logits(
-        labels=is_impossible, logits=cls_logits)
+    # regression_loss = tf.nn.sigmoid_cross_entropy_with_logits(
+    #     labels=is_impossible, logits=cls_logits)
+    regression_loss = tf.keras.backend.binary_crossentropy(is_impossible,cls_logits,from_logits=True)
     regression_loss = tf.reduce_mean(regression_loss)
 
     total_loss += regression_loss * 0.5
@@ -681,10 +682,29 @@ def train_squad(strategy,
     with strategy.scope():
         albert_config = AlbertConfig.from_json_file(FLAGS.albert_config_file)
         if FLAGS.version_2_with_negative:
-            model = get_model_v2(albert_config, input_meta_data['max_seq_length'],
-                                 FLAGS.init_checkpoint, FLAGS.learning_rate,
-                                 FLAGS.start_n_top, FLAGS.end_n_top, FLAGS.squad_dropout,
-                                 num_train_steps, num_warmup_steps)
+            model = ALBertQAModel(albert_config, max_seq_length, FLAGS.init_checkpoint, FLAGS.start_n_top, 
+                        FLAGS.end_n_top, FLAGS.squad_dropout)
+            learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(initial_learning_rate=FLAGS.learning_rate,
+                                                                     decay_steps=num_train_steps, end_learning_rate=0.0)
+            if num_warmup_steps:
+                learning_rate_fn = WarmUp(initial_learning_rate=FLAGS.learning_rate,
+                                        decay_schedule_fn=learning_rate_fn,
+                                        warmup_steps=num_warmup_steps)
+
+            if FLAGS.optimizer == "LAMB":
+                optimizer_fn = LAMB
+            else:
+                optimizer_fn = AdamWeightDecay
+
+            optimizer = optimizer_fn(
+                learning_rate=learning_rate_fn,
+                weight_decay_rate=FLAGS.weight_decay,
+                beta_1=0.9,
+                beta_2=0.999,
+                epsilon=FLAGS.adam_epsilon,
+                exclude_from_weight_decay=['layer_norm', 'bias'])
+
+            model.optimizer = optimizer
         else:
             model = get_model_v1(albert_config, input_meta_data['max_seq_length'],
                                  FLAGS.init_checkpoint, FLAGS.learning_rate,
@@ -815,7 +835,7 @@ def main(_):
     if FLAGS.strategy_type == 'mirror':
         strategy = tf.distribute.MirroredStrategy()
     elif FLAGS.strategy_type == 'one':
-        strategy = tf.distribute.OneDeviceStrategy()
+        strategy = tf.distribute.OneDeviceStrategy('GPU:0')
     else:
         raise ValueError('The distribution strategy type is not supported: %s' %
                          FLAGS.strategy_type)
