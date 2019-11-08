@@ -353,21 +353,21 @@ class ALBertQAModel(tf.keras.Model):
         self.qalayer = ALBertQALayer(self.albert_config.hidden_size, start_n_top, end_n_top,
                                      self.initializer, dropout)
 
-    def __call__(self, unique_ids, input_word_ids, input_mask,
-                 segment_ids, p_mask, start_positions=None,
-                 **kwargs):
-        inputs = tf_utils.pack_inputs(
-            [unique_ids, input_word_ids, input_mask, segment_ids, p_mask, start_positions])
-        return super(ALBertQAModel, self).__call__(inputs, **kwargs)
+    # def __call__(self, unique_ids, input_word_ids, input_mask,
+    #              segment_ids, p_mask, start_positions=None,
+    #              **kwargs):
+    #     inputs = tf_utils.pack_inputs(
+    #         [unique_ids, input_word_ids, input_mask, segment_ids, p_mask, start_positions])
+    #     return super(ALBertQAModel, self).__call__(inputs, **kwargs)
 
     def call(self, inputs, **kwargs):
-        unpacked_inputs = tf_utils.unpack_inputs(inputs)
-        unique_ids = unpacked_inputs[0]
-        input_word_ids = unpacked_inputs[1]
-        input_mask = unpacked_inputs[2]
-        segment_ids = unpacked_inputs[3]
-        p_mask = unpacked_inputs[4]
-        start_positions = unpacked_inputs[5]
+        # unpacked_inputs = tf_utils.unpack_inputs(inputs)
+        unique_ids = inputs["unique_id"]
+        input_word_ids = inputs["input_word_ids"]
+        input_mask = inputs["input_mask"]
+        segment_ids = inputs["segment_ids"]
+        p_mask = inputs["p_mask"]
+        start_positions = inputs["start_positions"]
         sequence_output = self.albert_model(
             [input_word_ids, input_mask, segment_ids], **kwargs)
         output = self.qalayer(
@@ -680,14 +680,14 @@ def train_squad(strategy,
 
     if FLAGS.version_2_with_negative:
         train_input_fn = functools.partial(
-            input_pipeline.create_squad_dataset,
+            input_pipeline.create_squad_dataset_v2,
             FLAGS.train_data_path,
             max_seq_length,
             FLAGS.train_batch_size,
             is_training=True)
     else:
         train_input_fn = functools.partial(
-            input_pipeline.create_squad_dataset_v2,
+            input_pipeline.create_squad_dataset,
             FLAGS.train_data_path,
             max_seq_length,
             FLAGS.train_batch_size,
