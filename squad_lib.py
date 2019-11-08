@@ -43,6 +43,11 @@ _DocSpan = collections.namedtuple(  # pylint: disable=invalid-name
 RawResult = collections.namedtuple("RawResult",
                                    ["unique_id", "start_logits", "end_logits"])
 
+RawResultV2 = collections.namedtuple(
+    "RawResultV2",
+    ["unique_id", "start_top_log_probs", "start_top_index",
+     "end_top_log_probs", "end_top_index", "cls_logits"])
+
 _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
       "PrelimPrediction",
       ["feature_index", "start_index", "end_index", "start_logit", "end_logit"])

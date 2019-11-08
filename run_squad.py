@@ -354,13 +354,6 @@ class ALBertQAModel(tf.keras.Model):
         self.qalayer = ALBertQALayer(self.albert_config.hidden_size, start_n_top, end_n_top,
                                      self.initializer, dropout)
 
-    # def __call__(self, unique_ids, input_word_ids, input_mask,
-    #              segment_ids, p_mask, start_positions=None,
-    #              **kwargs):
-    #     inputs = tf_utils.pack_inputs(
-    #         [unique_ids, input_word_ids, input_mask, segment_ids, p_mask, start_positions])
-    #     return super(ALBertQAModel, self).__call__(inputs, **kwargs)
-
     def call(self, inputs, **kwargs):
         # unpacked_inputs = tf_utils.unpack_inputs(inputs)
         unique_ids = inputs["unique_ids"]
@@ -483,6 +476,21 @@ def get_raw_results(predictions):
                 start_logits=values[1].tolist(),
                 end_logits=values[2].tolist())
 
+def get_raw_results_v2(predictions):
+    """Converts multi-replica predictions to RawResult."""
+    for unique_ids, start_top_log_probs, start_top_index, end_top_log_probs, end_top_index in zip(predictions['unique_ids'],
+                                                    predictions['start_top_log_probs'],
+                                                    predictions['start_top_index'],
+                                                    predictions['end_top_log_probs'],
+                                                    predictions['end_top_index']):
+        for values in zip(unique_ids.numpy(), start_top_log_probs.numpy(), start_top_index.numpy(), end_top_log_probs.numpy(), end_top_index.numpy()):
+            yield squad_lib.RawResult(
+                unique_id=values[0],
+                start_top_log_probs=values[1].tolist(),
+                start_top_index=values[2].tolist(),
+                end_top_log_probs=values[3].tolist(),
+                end_top_index=values[4].tolist()
+                )
 
 def predict_squad_customized(strategy, input_meta_data, albert_config,
                              predict_tfrecord_path, num_steps):
@@ -539,6 +547,8 @@ def predict_squad_customized(strategy, input_meta_data, albert_config,
     all_results = []
     for _ in range(num_steps):
         predictions = predict_step(predict_iterator)
+        if FLAGS.version_2_with_negative:
+            get_raw_results = get_raw_results_v2
         for result in get_raw_results(predictions):
             all_results.append(result)
         if len(all_results) % 100 == 0:
