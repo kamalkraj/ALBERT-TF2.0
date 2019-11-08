@@ -233,6 +233,7 @@ class ALBertQALayer(tf.keras.layers.Layer):
             [sequence_output, p_mask, start_positions])
         return super(ALBertQALayer, self).__call__(inputs, **kwargs)
 
+
     def call(self, inputs, **kwargs):
         """Implements call() for the layer."""
         unpacked_inputs = tf_utils.unpack_inputs(inputs)
@@ -240,7 +241,7 @@ class ALBertQALayer(tf.keras.layers.Layer):
         p_mask = unpacked_inputs[1]
         start_positions = unpacked_inputs[2]
 
-        batch_size, seq_len, _ = tf.shape(sequence_output)
+        batch_size, seq_len, _ = sequence_output.shape.as_list()
         sequence_output = tf.transpose(sequence_output, [1, 0, 2])
 
         start_logits = self.start_logits_proj_layer(sequence_output)
@@ -362,8 +363,8 @@ class ALBertQAModel(tf.keras.Model):
 
     def call(self, inputs, **kwargs):
         # unpacked_inputs = tf_utils.unpack_inputs(inputs)
-        unique_ids = inputs["unique_id"]
-        input_word_ids = inputs["input_word_ids"]
+        unique_ids = inputs["unique_ids"]
+        input_word_ids = inputs["input_ids"]
         input_mask = inputs["input_mask"]
         segment_ids = inputs["segment_ids"]
         p_mask = inputs["p_mask"]
@@ -371,7 +372,7 @@ class ALBertQAModel(tf.keras.Model):
         sequence_output = self.albert_model(
             [input_word_ids, input_mask, segment_ids], **kwargs)
         output = self.qalayer(
-            [sequence_output, p_mask, start_positions], **kwargs)
+            sequence_output, p_mask, start_positions, **kwargs)
         return (unique_ids,) + output
 
 
