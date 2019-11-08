@@ -181,7 +181,7 @@ class ALBertSquadLogitsLayer(tf.keras.layers.Layer):
 class ALBertQALayer(tf.keras.layers.Layer):
     """Layer computing position and is_possible for question answering task."""
 
-    def __init__(self, hidden_size, start_n_top, end_n_top, initializer, dropout, **kwargs):
+    def __init__(self, hidden_size, start_n_top, end_n_top, initializer, dropout, batch_size, **kwargs):
         """Constructs Summarization layer.
         Args:
           hidden_size: Int, the hidden size.
@@ -197,6 +197,7 @@ class ALBertQALayer(tf.keras.layers.Layer):
         self.end_n_top = end_n_top
         self.initializer = initializer
         self.dropout = dropout
+        self.batch_size = batch_size
 
     def build(self, unused_input_shapes):
         """Implements build() for the layer."""
@@ -241,7 +242,7 @@ class ALBertQALayer(tf.keras.layers.Layer):
         p_mask = unpacked_inputs[1]
         start_positions = unpacked_inputs[2]
 
-        batch_size, seq_len, _ = sequence_output.shape.as_list()
+        _, seq_len, _ = sequence_output.shape.as_list()
         sequence_output = tf.transpose(sequence_output, [1, 0, 2])
 
         start_logits = self.start_logits_proj_layer(sequence_output)
@@ -302,7 +303,7 @@ class ALBertQALayer(tf.keras.layers.Layer):
         # an additional layer to predict answerability
 
         # get the representation of CLS
-        cls_index = tf.one_hot(tf.zeros([batch_size], dtype=tf.int32),
+        cls_index = tf.one_hot(tf.zeros([self.batch_size], dtype=tf.int32),
                                seq_len,
                                axis=-1, dtype=tf.float32)
         cls_feature = tf.einsum('lbh,bl->bh', sequence_output, cls_index)
@@ -352,7 +353,7 @@ class ALBertQAModel(tf.keras.Model):
             self.albert_model.load_weights(init_checkpoint)
 
         self.qalayer = ALBertQALayer(self.albert_config.hidden_size, start_n_top, end_n_top,
-                                     self.initializer, dropout)
+                                     self.initializer, dropout,FLAGS.train_batch_size)
 
     def call(self, inputs, **kwargs):
         # unpacked_inputs = tf_utils.unpack_inputs(inputs)
