@@ -130,3 +130,44 @@ def create_squad_dataset(file_path, seq_length, batch_size, is_training=True):
   dataset = dataset.batch(batch_size, drop_remainder=False)
   dataset = dataset.prefetch(1024)
   return dataset
+
+def create_squad_dataset_v2(file_path, seq_length, batch_size, is_training):
+  """Creates input dataset from (tf)records files for pretraining."""
+  name_to_features = {
+      "unique_ids": tf.io.FixedLenFeature([], tf.int64),
+      "input_ids": tf.io.FixedLenFeature([seq_length], tf.int64),
+      "input_mask": tf.io.FixedLenFeature([seq_length], tf.int64),
+      "segment_ids": tf.io.FixedLenFeature([seq_length], tf.int64),
+      "cls_index": tf.io.FixedLenFeature([],tf.int64),
+      "p_mask": tf.io.FixedLenFeature([seq_length], tf.float32)
+  }
+
+  if is_training:
+    name_to_features["start_positions"] = tf.io.FixedLenFeature([], tf.int64)
+    name_to_features["end_positions"] = tf.io.FixedLenFeature([], tf.int64)
+    name_to_features["is_impossible"] = tf.io.FixedLenFeature([], tf.float32)
+
+  input_fn = file_based_input_fn_builder(file_path, name_to_features)
+  dataset = input_fn()
+
+  def _select_data_from_record(record):
+    x, y = {}, {}
+    for name, tensor in record.items():
+      if name in ('start_positions','end_positions','is_impossible'):
+        y[name] = tensor
+        if name == 'start_positions':
+          x[name] = tensor
+      else:
+        x[name] = tensor
+    return (x, y)
+
+  dataset = dataset.map(_select_data_from_record)
+
+  if is_training:
+    dataset = dataset.shuffle(100,reshuffle_each_iteration=True)
+    if FLAGS.custom_training_loop:
+      dataset = dataset.repeat()
+
+  dataset = dataset.batch(batch_size, drop_remainder=False)
+  dataset = dataset.prefetch(1024)
+  return dataset

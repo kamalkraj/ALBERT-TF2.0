@@ -124,3 +124,4 @@ glue_data/*
 *_out_*/*
 # squad
 SQuAD/*
+*.zip
