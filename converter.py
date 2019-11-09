@@ -86,17 +86,6 @@ def main(_):
         albert_config = AlbertConfig.from_json_file(
             os.path.join("model_configs", FLAGS.model, "config.json"))
 
-    albert_full_model = pretrain_model(albert_config,max_seq_length,max_predictions_per_seq=20)
-
-    albert_layer = AlbertModel(config=albert_config, float_type=float_type)
-
-    pooled_output, sequence_output = albert_layer(input_word_ids, input_mask,
-                                                  input_type_ids)
-
-    albert_model = tf.keras.Model(
-        inputs=[input_word_ids, input_mask, input_type_ids],
-        outputs=[pooled_output, sequence_output])
-
     tags = []
 
     stock_values = {}
@@ -114,10 +103,19 @@ def main(_):
     weight_value_tuples = []
     skipped_weight_value_tuples = []
 
-    if FLAGS.model == "albert_encoder":
+    if FLAGS.model_type == "albert_encoder":
+        albert_layer = AlbertModel(config=albert_config, float_type=float_type)
+
+        pooled_output, sequence_output = albert_layer(input_word_ids, input_mask,
+                                                  input_type_ids)
+        albert_model = tf.keras.Model(
+        inputs=[input_word_ids, input_mask, input_type_ids],
+        outputs=[pooled_output, sequence_output])
         albert_params = albert_model.weights
         param_values = tf.keras.backend.batch_get_value(albert_model.weights)
     else:
+        albert_full_model,_ = pretrain_model(albert_config,max_seq_length,max_predictions_per_seq=20)
+        albert_layer = albert_full_model.get_layer("albert_model")
         albert_params = albert_full_model.weights
         param_values = tf.keras.backend.batch_get_value(albert_full_model.weights)
 
@@ -142,17 +140,17 @@ def main(_):
             skip_count += 1
     tf.keras.backend.batch_set_value(weight_value_tuples)
 
-    print("Done loading {} BERT weights from: {} into {} (prefix:{}). "
+    print("Done loading {} ALBERT weights from: {} into {} (prefix:{}). "
           "Count of weights not found in the checkpoint was: [{}]. "
           "Count of weights with mismatched shape: [{}]".format(
               len(weight_value_tuples), tfhub_model_path, albert_layer, "albert", skip_count, len(skipped_weight_value_tuples)))
     print("Unused weights from saved model:",
           "\n\t" + "\n\t".join(sorted(set(stock_values.keys()).difference(loaded_weights))))
 
-    if FLAGS.model == "albert_encoder":
+    if FLAGS.model_type == "albert_encoder":
         albert_model.save_weights(f"{tfhub_model_path}/tf2_model.h5")
     else:
-        albert_model.save_weights(f"{tfhub_model_path}/tf2_model_full.h5")
+        albert_full_model.save_weights(f"{tfhub_model_path}/tf2_model_full.h5")
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("tf_hub_path")
