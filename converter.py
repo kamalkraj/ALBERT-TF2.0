@@ -8,11 +8,22 @@ from absl import app, flags
 
 from albert import AlbertConfig, AlbertModel
 
+from albert_model import pretrain_model
+
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string(
     "tf_hub_path", None,
     "tf_hub_path for download models")
+
+flags.DEFINE_enum("model_type","albert_encoder",["albert_encoder","albert"],
+                  "Select model type for weight conversion.\n"
+                  "albert_enoder for finetuning tasks.\n"
+                  "albert for MLM & SOP FineTuning on domain specific data.")
+
+flags.DEFINE_integer("version",2,"tf hub model version to convert 1 or 2.")
+
+flags.DEFINE_enum("model","base",["base", "large", "xlarge", "xxlarge"],"model for converison")
 
 weight_map = {
     "bert/embeddings/word_embeddings": "albert_model/word_embeddings/embeddings:0",
@@ -39,8 +50,17 @@ weight_map = {
     "bert/encoder/transformer/group_0/inner_group_0/LayerNorm_1/beta": "albert_model/encoder/shared_layer/output_layer_norm/beta:0",
     "bert/encoder/transformer/group_0/inner_group_0/LayerNorm_1/gamma": "albert_model/encoder/shared_layer/output_layer_norm/gamma:0",
     "bert/pooler/dense/kernel": "albert_model/pooler_transform/kernel:0",
-    "bert/pooler/dense/bias": "albert_model/pooler_transform/bias:0"
+    "bert/pooler/dense/bias": "albert_model/pooler_transform/bias:0",
+    "cls/predictions/transform/dense/kernel": "cls/predictions/transform/dense/kernel:0",
+    "cls/predictions/transform/dense/bias": "cls/predictions/transform/dense/bias:0",
+    "cls/predictions/transform/LayerNorm/beta": "cls/predictions/transform/LayerNorm/beta:0",
+    "cls/predictions/transform/LayerNorm/gamma": "cls/predictions/transform/LayerNorm/gamma:0",
+    "cls/predictions/output_bias": "cls/predictions/output_bias:0",
+    'cls/seq_relationship/output_weights': 'cls/seq_relationship/output_weights:0',
+    'cls/seq_relationship/output_bias': 'cls/seq_relationship/output_bias:0'
 }
+
+
 
 weight_map = {v: k for k, v in weight_map.items()}
 
@@ -50,6 +70,7 @@ def main(_):
     tfhub_model_path = FLAGS.tf_hub_path
     max_seq_length = 512
     float_type = tf.float32
+    
 
     input_word_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='input_word_ids')
@@ -58,8 +79,14 @@ def main(_):
     input_type_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='input_type_ids')
 
-    albert_config = AlbertConfig.from_json_file(
-        os.path.join(tfhub_model_path, "assets", "albert_config.json"))
+    if FLAGS.version == 2:
+        albert_config = AlbertConfig.from_json_file(
+            os.path.join(tfhub_model_path, "assets", "albert_config.json"))
+    else:
+        albert_config = AlbertConfig.from_json_file(
+            os.path.join("model_configs", FLAGS.model, "config.json"))
+
+    albert_full_model = pretrain_model(albert_config,max_seq_length,max_predictions_per_seq=20)
 
     albert_layer = AlbertModel(config=albert_config, float_type=float_type)
 
@@ -87,8 +114,12 @@ def main(_):
     weight_value_tuples = []
     skipped_weight_value_tuples = []
 
-    albert_params = albert_model.weights
-    param_values = tf.keras.backend.batch_get_value(albert_model.weights)
+    if FLAGS.model == "albert_encoder":
+        albert_params = albert_model.weights
+        param_values = tf.keras.backend.batch_get_value(albert_model.weights)
+    else:
+        albert_params = albert_full_model.weights
+        param_values = tf.keras.backend.batch_get_value(albert_full_model.weights)
 
     for ndx, (param_value, param) in enumerate(zip(param_values, albert_params)):
         stock_name = weight_map[param.name]
@@ -118,9 +149,14 @@ def main(_):
     print("Unused weights from saved model:",
           "\n\t" + "\n\t".join(sorted(set(stock_values.keys()).difference(loaded_weights))))
 
-    albert_model.save_weights(f"{tfhub_model_path}/tf2_model.h5")
-
+    if FLAGS.model == "albert_encoder":
+        albert_model.save_weights(f"{tfhub_model_path}/tf2_model.h5")
+    else:
+        albert_model.save_weights(f"{tfhub_model_path}/tf2_model_full.h5")
 
 if __name__ == "__main__":
     flags.mark_flag_as_required("tf_hub_path")
+    flags.mark_flag_as_required("model")
+    flags.mark_flag_as_required("version")
+    flags.mark_flag_as_required("model_type")
     app.run(main)
