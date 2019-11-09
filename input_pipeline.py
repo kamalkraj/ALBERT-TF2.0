@@ -138,6 +138,7 @@ def create_squad_dataset_v2(file_path, seq_length, batch_size, is_training):
       "input_ids": tf.io.FixedLenFeature([seq_length], tf.int64),
       "input_mask": tf.io.FixedLenFeature([seq_length], tf.int64),
       "segment_ids": tf.io.FixedLenFeature([seq_length], tf.int64),
+      "cls_index": tf.io.FixedLenFeature([],tf.int64),
       "p_mask": tf.io.FixedLenFeature([seq_length], tf.float32)
   }
 
