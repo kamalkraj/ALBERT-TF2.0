@@ -181,7 +181,7 @@ class ALBertSquadLogitsLayer(tf.keras.layers.Layer):
 class ALBertQALayer(tf.keras.layers.Layer):
     """Layer computing position and is_possible for question answering task."""
 
-    def __init__(self, hidden_size, start_n_top, end_n_top, initializer, dropout, batch_size, **kwargs):
+    def __init__(self, hidden_size, start_n_top, end_n_top, initializer, dropout, **kwargs):
         """Constructs Summarization layer.
         Args:
           hidden_size: Int, the hidden size.
@@ -197,7 +197,6 @@ class ALBertQALayer(tf.keras.layers.Layer):
         self.end_n_top = end_n_top
         self.initializer = initializer
         self.dropout = dropout
-        self.batch_size = batch_size
 
     def build(self, unused_input_shapes):
         """Implements build() for the layer."""
@@ -228,10 +227,11 @@ class ALBertQALayer(tf.keras.layers.Layer):
     def __call__(self,
                  sequence_output,
                  p_mask,
+                 cls_index,
                  start_positions=None,
                  **kwargs):
         inputs = tf_utils.pack_inputs(
-            [sequence_output, p_mask, start_positions])
+            [sequence_output, p_mask, cls_index, start_positions])
         return super(ALBertQALayer, self).__call__(inputs, **kwargs)
 
 
@@ -240,7 +240,8 @@ class ALBertQALayer(tf.keras.layers.Layer):
         unpacked_inputs = tf_utils.unpack_inputs(inputs)
         sequence_output = unpacked_inputs[0]
         p_mask = unpacked_inputs[1]
-        start_positions = unpacked_inputs[2]
+        cls_index = unpacked_inputs[2]
+        start_positions = unpacked_inputs[3]
 
         _, seq_len, _ = sequence_output.shape.as_list()
         sequence_output = tf.transpose(sequence_output, [1, 0, 2])
@@ -303,9 +304,7 @@ class ALBertQALayer(tf.keras.layers.Layer):
         # an additional layer to predict answerability
 
         # get the representation of CLS
-        cls_index = tf.one_hot(tf.zeros([self.batch_size], dtype=tf.int32),
-                               seq_len,
-                               axis=-1, dtype=tf.float32)
+        cls_index = tf.one_hot(cls_index, seq_len, axis=-1, dtype=tf.float32)
         cls_feature = tf.einsum('lbh,bl->bh', sequence_output, cls_index)
 
         # get the representation of START
@@ -353,7 +352,7 @@ class ALBertQAModel(tf.keras.Model):
             self.albert_model.load_weights(init_checkpoint)
 
         self.qalayer = ALBertQALayer(self.albert_config.hidden_size, start_n_top, end_n_top,
-                                     self.initializer, dropout,FLAGS.train_batch_size//4)
+                                     self.initializer, dropout)
 
     def call(self, inputs, **kwargs):
         # unpacked_inputs = tf_utils.unpack_inputs(inputs)
@@ -361,6 +360,7 @@ class ALBertQAModel(tf.keras.Model):
         input_word_ids = inputs["input_ids"]
         input_mask = inputs["input_mask"]
         segment_ids = inputs["segment_ids"]
+        cls_index = tf.reshape(inputs["cls_index"], [-1])
         p_mask = inputs["p_mask"]
         if kwargs.get('training',False):
             start_positions = inputs["start_positions"]
@@ -369,7 +369,7 @@ class ALBertQAModel(tf.keras.Model):
         sequence_output = self.albert_model(
             [input_word_ids, input_mask, segment_ids], **kwargs)
         output = self.qalayer(
-            sequence_output, p_mask, start_positions, **kwargs)
+            sequence_output, p_mask, cls_index, start_positions, **kwargs)
         return (unique_ids,) + output
 
 
@@ -695,29 +695,10 @@ def train_squad(strategy,
     with strategy.scope():
         albert_config = AlbertConfig.from_json_file(FLAGS.albert_config_file)
         if FLAGS.version_2_with_negative:
-            model = ALBertQAModel(albert_config, max_seq_length, FLAGS.init_checkpoint, FLAGS.start_n_top, 
-                        FLAGS.end_n_top, FLAGS.squad_dropout)
-            learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(initial_learning_rate=FLAGS.learning_rate,
-                                                                     decay_steps=num_train_steps, end_learning_rate=0.0)
-            if num_warmup_steps:
-                learning_rate_fn = WarmUp(initial_learning_rate=FLAGS.learning_rate,
-                                        decay_schedule_fn=learning_rate_fn,
-                                        warmup_steps=num_warmup_steps)
-
-            if FLAGS.optimizer == "LAMB":
-                optimizer_fn = LAMB
-            else:
-                optimizer_fn = AdamWeightDecay
-
-            optimizer = optimizer_fn(
-                learning_rate=learning_rate_fn,
-                weight_decay_rate=FLAGS.weight_decay,
-                beta_1=0.9,
-                beta_2=0.999,
-                epsilon=FLAGS.adam_epsilon,
-                exclude_from_weight_decay=['layer_norm', 'bias'])
-
-            model.optimizer = optimizer
+            model = get_model_v2(albert_config,input_meta_data['max_seq_length'],
+                                FLAGS.init_checkpoint, FLAGS.learning_rate,
+                                FLAGS.start_n_top, FLAGS.end_n_top,FLAGS.squad_dropout,
+                                num_train_steps, num_warmup_steps)
         else:
             model = get_model_v1(albert_config, input_meta_data['max_seq_length'],
                                  FLAGS.init_checkpoint, FLAGS.learning_rate,
