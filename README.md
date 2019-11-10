@@ -7,6 +7,9 @@ This repository contains TensorFlow 2.0 implementation for ALBERT.
 - python3
 - pip install -r requirements.txt
 
+## ALBERT Pre-training
+ALBERT model pre-training from scratch and Domain specific fine-tuning. Instructions [here](./pretraining.md)
+
 ## Download ALBERT TF 2.0 weights
 
 |                                   Verison 1                                   |                                   Version 2                                   |
@@ -20,7 +23,7 @@ unzip the model inside repo.
 
 Above weights does not contain the final layer in original model. Now can only be used for fine tuning downstream tasks.
 
-Weights conversion from TF-HUB to TF 2.0 [here](./converter.md)
+For full Weights conversion from TF-HUB to TF 2.0 [here](./converter.md)
 
 ## Download glue data
 Download using the below cmd
