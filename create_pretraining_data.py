@@ -20,6 +20,7 @@
 from __future__ import absolute_import, division, print_function
 
 import collections
+import json
 import random
 
 import numpy as np
@@ -29,6 +30,7 @@ from absl import app, flags, logging
 from six.moves import range, zip
 
 import tokenization
+from tqdm import tqdm, trange
 
 FLAGS = flags.FLAGS
 
@@ -78,6 +80,9 @@ flags.DEFINE_integer("max_predictions_per_seq", 20,
 
 flags.DEFINE_integer("random_seed", 12345, "Random seed for data generation.")
 
+flags.DEFINE_string("meta_data_file_path", None,
+                    "The path in which input meta data will be written.")
+
 flags.DEFINE_integer(
     "dupe_factor", 40,
     "Number of times to duplicate the input data (with different masks).")
@@ -88,6 +93,7 @@ flags.DEFINE_float(
     "short_seq_prob", 0.1,
     "Probability of creating sequences which are shorter than the "
     "maximum length.")
+
 
 
 class TrainingInstance(object):
@@ -198,7 +204,15 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
 
   for writer in writers:
     writer.close()
-
+  
+  meta_data = {
+      "task_type": "albert_pretraining",
+      "train_data_size": total_written,
+      "max_seq_length": max_seq_length,
+      "max_predictions_per_seq":FLAGS.max_predictions_per_seq
+  }
+  with tf.io.gfile.GFile(FLAGS.meta_data_file_path, "w") as writer:
+        writer.write(json.dumps(meta_data, indent=4) + "\n")
   logging.info("Wrote %d total instances", total_written)
 
 
@@ -224,7 +238,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
   # sentence boundaries for the "next sentence prediction" task).
   # (2) Blank lines between documents. Document boundaries are needed so
   # that the "next sentence prediction" task doesn't span between documents.
-  for input_file in input_files:
+  for input_file in tqdm(input_files):
     with tf.io.gfile.GFile(input_file, "r") as reader:
       while True:
         line = reader.readline()
@@ -250,8 +264,8 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
   vocab_words = list(tokenizer.vocab.keys())
   instances = []
-  for _ in range(dupe_factor):
-    for document_index in range(len(all_documents)):
+  for _ in trange(dupe_factor):
+    for document_index in trange(len(all_documents)):
       instances.extend(
           create_instances_from_document(
               all_documents, document_index, max_seq_length, short_seq_prob,
@@ -650,4 +664,5 @@ if __name__ == "__main__":
   flags.mark_flag_as_required("input_file")
   flags.mark_flag_as_required("output_file")
   flags.mark_flag_as_required("spm_model_file")
+  flags.mark_flag_as_required("meta_data_file_path")
   app.run(main)
