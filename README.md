@@ -130,7 +130,47 @@ python run_squad.py \
 --strategy_type=mirror
 ```
 
+### Runnig SQuAD V2.0
 
+```bash
+export SQUAD_DIR=SQuAD
+export SQUAD_VERSION=v2.0
+export ALBERT_DIR=xxlarge
+export OUTPUT_DIR=squad_out_${SQUAD_VERSION}
+mkdir $OUTPUT_DIR
+```
+
+```bash
+python create_finetuning_data.py \
+--squad_data_file=${SQUAD_DIR}/train-${SQUAD_VERSION}.json \
+--spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model  \
+--train_data_output_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_train.tf_record  \
+--meta_data_file_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data \
+--fine_tuning_task_type=squad \
+--max_seq_length=384
+```
+
+```bash
+python run_squad.py \
+--mode=train_and_predict \
+--input_meta_data_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_meta_data \
+--train_data_path=${OUTPUT_DIR}/squad_${SQUAD_VERSION}_train.tf_record \
+--predict_file=${SQUAD_DIR}/dev-${SQUAD_VERSION}.json \
+--albert_config_file=${ALBERT_DIR}/config.json \
+--init_checkpoint=${ALBERT_DIR}/tf2_model.h5 \
+--spm_model_file=${ALBERT_DIR}/vocab/30k-clean.model \
+--train_batch_size=24 \
+--predict_batch_size=24 \
+--learning_rate=1.5e-5 \
+--num_train_epochs=3 \
+--model_dir=${OUTPUT_DIR} \
+--strategy_type=mirror \
+--version_2_with_negative \
+--max_seq_length=384
+```
+
+#### Result
+![SQuAD output image](img/squad_2.png)
 
 ### Multi-GPU training and XLA
 
