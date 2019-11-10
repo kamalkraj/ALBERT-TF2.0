@@ -171,7 +171,7 @@ python run_squad.py \
 --version_2_with_negative \
 --max_seq_length=384
 ```
-
+Experiment done on 4 x NVIDIA TITAN RTX 24 GB.
 #### Result
 ![SQuAD output image](img/squad_2.png)
 
