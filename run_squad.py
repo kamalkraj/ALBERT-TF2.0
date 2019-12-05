@@ -736,7 +736,7 @@ def train_squad(strategy,
         model_dir=FLAGS.model_dir,
         train_input_fn=train_input_fn,
         steps_per_epoch=steps_per_epoch,
-        steps_per_loop=steps_per_epoch,
+        # steps_per_loop=steps_per_epoch,
         epochs=FLAGS.num_train_epochs,
         run_eagerly=run_eagerly,
         custom_callbacks=custom_callbacks)
