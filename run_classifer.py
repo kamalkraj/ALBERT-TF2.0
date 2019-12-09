@@ -160,6 +160,19 @@ def get_loss_fn(num_classes, loss_factor=1.0):
 
   return classification_loss_fn
 
+def get_loss_fn_v2(loss_factor=1.0):
+    """Gets the loss function for STS."""
+
+    def sts_loss_fn(labels, logits):
+        """STS loss"""
+        logits = tf.squeeze(logits, [-1])
+        per_example_loss = tf.square(logits - labels)
+        loss = tf.reduce_mean(per_example_loss)
+        loss *= loss_factor
+        return loss
+    
+    return sts_loss_fn
+
 def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learning_rate,
                      num_train_steps, num_warmup_steps,loss_multiplier):
     """Returns keras fuctional model"""
@@ -217,10 +230,13 @@ def get_model(albert_config, max_seq_length, num_labels, init_checkpoint, learni
         beta_2=0.999,
         epsilon=FLAGS.adam_epsilon,
         exclude_from_weight_decay=['layer_norm', 'bias'])
-
-    loss_fct = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-
-    model.compile(optimizer=optimizer,loss=loss_fct,metrics=['accuracy'])
+    
+    if FLAGS.task_name.lower() == 'sts':
+        loss_fct = tf.keras.losses.MeanSquaredError()
+        model.compile(optimizer=optimizer,loss=loss_fct,metrics=['mse'])
+    else:
+        loss_fct = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+        model.compile(optimizer=optimizer,loss=loss_fct,metrics=['accuracy'])
 
     return model
 
@@ -316,10 +332,16 @@ def main(_):
         custom_callbacks = [summary_callback, checkpoint_callback]
 
         def metric_fn():
-            return tf.keras.metrics.SparseCategoricalAccuracy(dtype=tf.float32)
+            if FLAGS.task_name.lower() == "sts":
+                return tf.keras.metrics.MeanSquaredError(dtype=tf.float32)
+            else:
+                return tf.keras.metrics.SparseCategoricalAccuracy(dtype=tf.float32)
 
         if FLAGS.custom_training_loop:
-            loss_fn = get_loss_fn(num_labels,loss_factor=loss_multiplier)
+            if FLAGS.task_name.lower() == "sts":
+                loss_fn = get_loss_fn_v2(loss_factor=loss_multiplier)
+            else:
+                loss_fn = get_loss_fn(num_labels,loss_factor=loss_multiplier)
             model = run_customized_training_loop(strategy = strategy,
                     model = model,
                     loss_fn = loss_fn,
@@ -396,8 +418,12 @@ def main(_):
 
     with strategy.scope():
         logits = model.predict(prediction_dataset)
-        predictions = tf.argmax(logits, axis=-1, output_type=tf.int32)
-        probabilities = tf.nn.softmax(logits, axis=-1)
+        if FLAGS.task_name.lower() == "sts":
+            predictions = logits
+            probabilities = logits
+        else:
+            predictions = tf.argmax(logits, axis=-1, output_type=tf.int32)
+            probabilities = tf.nn.softmax(logits, axis=-1)
 
     output_predict_file = os.path.join(FLAGS.output_dir, "test_results.tsv")
     output_submit_file = os.path.join(FLAGS.output_dir, "submit_results.tsv")

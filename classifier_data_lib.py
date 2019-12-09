@@ -659,9 +659,10 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
         label_id=0,
         is_real_example=False)
 
-  label_map = {}
-  for (i, label) in enumerate(label_list):
-    label_map[label] = i
+  if FLAGS.classification_task_name.lower() != "sts":
+    label_map = {}
+    for (i, label) in enumerate(label_list):
+      label_map[label] = i
 
   tokens_a = tokenizer.tokenize(example.text_a)
   tokens_b = None
@@ -729,7 +730,11 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
   assert len(input_mask) == max_seq_length
   assert len(segment_ids) == max_seq_length
 
-  label_id = label_map[example.label]
+  if FLAGS.classification_task_name.lower() != "sts":
+    label_id = label_map[example.label]
+  else:
+    label_id = example.label
+
   if ex_index < 5:
     logging.info("*** Example ***")
     logging.info("guid: %s" % (example.guid))
@@ -766,12 +771,17 @@ def file_based_convert_examples_to_features(examples, label_list,
     def create_int_feature(values):
       f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
       return f
+    
+    def create_float_feature(values):
+      f = tf.train.Feature(float_list=tf.train.FloatList(value=list(values)))
+      return f
 
     features = collections.OrderedDict()
     features["input_ids"] = create_int_feature(feature.input_ids)
     features["input_mask"] = create_int_feature(feature.input_mask)
     features["segment_ids"] = create_int_feature(feature.segment_ids)
-    features["label_ids"] = create_int_feature([feature.label_id])
+    features["label_ids"] = create_float_feature([feature.label_id])\
+        if FLAGS.classification_task_name.lower() == "sts" else create_int_feature([feature.label_id])
     features["is_real_example"] = create_int_feature(
         [int(feature.is_real_example)])
 

@@ -148,7 +148,7 @@ def create_classifier_dataset(file_path,
       'input_ids': tf.io.FixedLenFeature([seq_length], tf.int64),
       'input_mask': tf.io.FixedLenFeature([seq_length], tf.int64),
       'segment_ids': tf.io.FixedLenFeature([seq_length], tf.int64),
-      'label_ids': tf.io.FixedLenFeature([], tf.int64),
+      'label_ids': tf.io.FixedLenFeature([], tf.int64) if FLAGS.task_name.lower() != "sts" else tf.io.FixedLenFeature([], tf.float32),
       'is_real_example': tf.io.FixedLenFeature([], tf.int64),
   }
   input_fn = file_based_input_fn_builder(file_path, name_to_features)
