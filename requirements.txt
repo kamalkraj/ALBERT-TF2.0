@@ -1,4 +1,4 @@
 absl-py==0.8.1
 sentencepiece==0.1.83
-tensorflow-gpu==2.0.0
+tensorflow-gpu==2.3.1
 tqdm==4.38.0
