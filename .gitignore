@@ -125,3 +125,4 @@ glue_data/*
 # squad
 SQuAD/*
 *.zip
+*.tar.gz

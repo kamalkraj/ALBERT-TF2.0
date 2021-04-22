@@ -12,18 +12,23 @@ from albert_model import pretrain_model
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string(
-    "tf_hub_path", None,
-    "tf_hub_path for download models")
+flags.DEFINE_enum("weights_type", "tf_hub", [
+                  "tf_hub", "tar"], "model weight type tf_hub/tar")
 
-flags.DEFINE_enum("model_type","albert_encoder",["albert_encoder","albert"],
+
+flags.DEFINE_string(
+    "weights_path", None,
+    "weights_path for download models")
+
+flags.DEFINE_enum("model_type", "albert_encoder", ["albert_encoder", "albert"],
                   "Select model type for weight conversion.\n"
                   "albert_enoder for finetuning tasks.\n"
                   "albert for MLM & SOP FineTuning on domain specific data.")
 
-flags.DEFINE_integer("version",2,"tf hub model version to convert 1 or 2.")
+flags.DEFINE_integer("version", 2, "tf hub model version to convert 1 or 2.")
 
-flags.DEFINE_enum("model","base",["base", "large", "xlarge", "xxlarge"],"model for converison")
+flags.DEFINE_enum("model", "base", [
+                  "base", "large", "xlarge", "xxlarge"], "model for converison")
 
 weight_map = {
     "bert/embeddings/word_embeddings": "albert_model/word_embeddings/embeddings:0",
@@ -61,16 +66,14 @@ weight_map = {
 }
 
 
-
 weight_map = {v: k for k, v in weight_map.items()}
 
 
 def main(_):
 
-    tfhub_model_path = FLAGS.tf_hub_path
+    weights_path = FLAGS.weights_path
     max_seq_length = 512
     float_type = tf.float32
-    
 
     input_word_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='input_word_ids')
@@ -79,9 +82,12 @@ def main(_):
     input_type_ids = tf.keras.layers.Input(
         shape=(max_seq_length,), dtype=tf.int32, name='input_type_ids')
 
-    if FLAGS.version == 2:
+    if FLAGS.version == 2 and FLAGS.weights_type == "tf_hub":
         albert_config = AlbertConfig.from_json_file(
-            os.path.join(tfhub_model_path, "assets", "albert_config.json"))
+            os.path.join(weights_path, "assets", "albert_config.json"))
+    elif FLAGS.version == 2 and FLAGS.weights_type == "tar":
+        albert_config = AlbertConfig.from_json_file(
+            os.path.join(weights_path, f"albert_{FLAGS.model}", "albert_config.json"))
     else:
         albert_config = AlbertConfig.from_json_file(
             os.path.join("model_configs", FLAGS.model, "config.json"))
@@ -90,13 +96,29 @@ def main(_):
 
     stock_values = {}
 
-    with tf.Graph().as_default():
-        sm = tf.compat.v2.saved_model.load(tfhub_model_path, tags=tags)
-        with tf.compat.v1.Session() as sess:
-            sess.run(tf.compat.v1.global_variables_initializer())
-            stock_values = {v.name.split(":")[0]: v.read_value()
-                            for v in sm.variables}
-            stock_values = sess.run(stock_values)
+    if FLAGS.weights_type == "tf_hub":
+        with tf.Graph().as_default():
+            sm = tf.compat.v2.saved_model.load(weights_path, tags=tags)
+            with tf.compat.v1.Session() as sess:
+                sess.run(tf.compat.v1.global_variables_initializer())
+                stock_values = {v.name.split(":")[0]: v.read_value()
+                                for v in sm.variables}
+                stock_values = sess.run(stock_values)
+    elif FLAGS.weights_type == "tar":
+        tf_vars = tf.train.list_variables(os.path.join(
+            weights_path, f"albert_{FLAGS.model}", "model.ckpt-best"))
+        tf_vars_ = []
+        for (name, size) in tf_vars:
+            if name.endswith("adam_m") or name.endswith("adam_v") or name == 'global_step':
+                continue
+            else:
+                tf_vars_.append((name, size))
+        stock_values = {}
+        for name, shape in tf_vars_:
+            print("Loading TF weight {} with shape {}".format(name, shape))
+            array = tf.train.load_variable(os.path.join(
+            weights_path, f"albert_{FLAGS.model}", "model.ckpt-best"), name)
+            stock_values.update({name: array})
 
     loaded_weights = set()
     skip_count = 0
@@ -107,17 +129,19 @@ def main(_):
         albert_layer = AlbertModel(config=albert_config, float_type=float_type)
 
         pooled_output, sequence_output = albert_layer(input_word_ids, input_mask,
-                                                  input_type_ids)
+                                                      input_type_ids)
         albert_model = tf.keras.Model(
-        inputs=[input_word_ids, input_mask, input_type_ids],
-        outputs=[pooled_output, sequence_output])
+            inputs=[input_word_ids, input_mask, input_type_ids],
+            outputs=[pooled_output, sequence_output])
         albert_params = albert_model.weights
         param_values = tf.keras.backend.batch_get_value(albert_model.weights)
     else:
-        albert_full_model,_ = pretrain_model(albert_config,max_seq_length,max_predictions_per_seq=20)
+        albert_full_model, _ = pretrain_model(
+            albert_config, max_seq_length, max_predictions_per_seq=20)
         albert_layer = albert_full_model.get_layer("albert_model")
         albert_params = albert_full_model.weights
-        param_values = tf.keras.backend.batch_get_value(albert_full_model.weights)
+        param_values = tf.keras.backend.batch_get_value(
+            albert_full_model.weights)
 
     for ndx, (param_value, param) in enumerate(zip(param_values, albert_params)):
         stock_name = weight_map[param.name]
@@ -136,24 +160,26 @@ def main(_):
             loaded_weights.add(stock_name)
         else:
             print("loader: No value for:[{}], i.e.:[{}] in:[{}]".format(
-                param.name, stock_name, tfhub_model_path))
+                param.name, stock_name, weights_path))
             skip_count += 1
     tf.keras.backend.batch_set_value(weight_value_tuples)
 
     print("Done loading {} ALBERT weights from: {} into {} (prefix:{}). "
           "Count of weights not found in the checkpoint was: [{}]. "
           "Count of weights with mismatched shape: [{}]".format(
-              len(weight_value_tuples), tfhub_model_path, albert_layer, "albert", skip_count, len(skipped_weight_value_tuples)))
+              len(weight_value_tuples), weights_path, albert_layer, "albert", skip_count, len(skipped_weight_value_tuples)))
     print("Unused weights from saved model:",
           "\n\t" + "\n\t".join(sorted(set(stock_values.keys()).difference(loaded_weights))))
 
     if FLAGS.model_type == "albert_encoder":
-        albert_model.save_weights(f"{tfhub_model_path}/tf2_model.h5")
+        albert_model.save_weights(f"{weights_path}/tf2_model.h5")
     else:
-        albert_full_model.save_weights(f"{tfhub_model_path}/tf2_model_full.h5")
+        albert_full_model.save_weights(f"{weights_path}/tf2_model_full.h5")
+
 
 if __name__ == "__main__":
-    flags.mark_flag_as_required("tf_hub_path")
+    flags.mark_flag_as_required("weights_path")
+    flags.mark_flag_as_required("weights_type")
     flags.mark_flag_as_required("model")
     flags.mark_flag_as_required("version")
     flags.mark_flag_as_required("model_type")
