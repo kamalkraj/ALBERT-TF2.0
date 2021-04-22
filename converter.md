@@ -68,4 +68,4 @@ rm -rf ${MODEL_DIR}/albert_base
 
 In the released TF-HUB weights sentence order prediction weights are not included. FineTuning the model on domain specific data has to learn those weights from random initialization.
 
-For full weights conversion use converter from tar files.
+For full weights conversion including sentence order prediction weights use converter from tar files.
